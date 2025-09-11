@@ -26,8 +26,8 @@
   --danger: #ff5d5d;     /* ошибки, красный */
 
   /* ====== ТАЙМЕР ====== */
-  --timer-bg: #3c2415;           /* фон пилюли */
-  --timer-text: #ff9b4a;         /* текст и иконка */
+  --timer-bg: rgba(255, 93, 93, 0.1);         /* фон пилюли */
+  --timer-text: #ff5d5d;                      /* текст и иконка */
   --timer-border: rgba(255,155,80,0.12);
 
   /* ====== ДОПОЛНИТЕЛЬНЫЕ ПОВЕРХНОСТИ/СОСТОЯНИЯ ====== */
@@ -422,6 +422,16 @@ button { font: inherit; color: inherit; }
   font-weight: 600;
 }
 
+/* Иконка бота для "Нейросеть" */
+.dialog__bot-icon {
+  width: 16px;
+  height: 16px;
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 6px;
+  color: var(--badge);
+}
+
 /* Контент диалога */
 .dialog__top{
   display: flex;
@@ -443,7 +453,7 @@ button { font: inherit; color: inherit; }
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 0 10px;
+  padding: 0 8px;
   border-radius: 14px;
   background: var(--timer-bg);
   color: var(--timer-text);
@@ -465,31 +475,34 @@ button { font: inherit; color: inherit; }
   display: inline-block;
   object-fit: contain;
   align-self: center;
-  filter: invert(63%) sepia(77%) saturate(582%) hue-rotate(344deg) brightness(101%) contrast(101%);
+  color: var(--timer-text);
 }
 .dialog__timer-value{ font-weight: 700; font-size: 12px; }
 
-.dialog__name{ font-weight: 600; }
+.dialog__name{ font-weight: 700; font-size: 15px; }
 
 .badge{
-  font-size: 11px;
+  font-size: 12px;
   color: var(--badge);
   background: var(--badge-bg);
   border: 1px solid var(--badge-border);
   padding: 2px 8px;
   border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .dialog__time{
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
   margin-bottom: 5px;
 }
 .dialog__row .dialog__time{ margin-bottom: 0; }
 
 .dialog__meta{
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .dialog__menu .icon-btn{

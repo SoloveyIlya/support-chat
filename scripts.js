@@ -112,16 +112,20 @@
       li.setAttribute('tabindex', '0');
       li.dataset.id = String(item.id);
       li.setAttribute('aria-selected', String(state.selectedId === item.id));
+
       li.innerHTML = `
         <div class="dialog__body">
           <div class="dialog__top">
             <span class="dialog__name">${item.name}</span>
-            <span class="badge">Нейросеть</span>
+            <span class="badge">
+              <svg class="dialog__bot-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><line x1="8" y1="16" x2="8" y2="16" /><line x1="16" y1="16" x2="16" y2="16" /></svg>
+              Нейросеть
+            </span>
           </div>
           <div class="dialog__row">
             <div class="dialog__time">${item.time}</div>
             <span class="dialog__timer" data-visible="false" hidden aria-hidden="true">
-              <img class="dialog__timer-icon" src="images/timer-thin.svg" alt="" aria-hidden="true" />
+              <svg class="dialog__timer-icon" viewBox="0 0 256 256" id="Flat" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" fill="currentColor"><path d="M128,36a92,92,0,1,0,92,92A92.10416,92.10416,0,0,0,128,36Zm0,176a84,84,0,1,1,84-84A84.095,84.095,0,0,1,128,212ZM170.42627,85.57324a4.00106,4.00106,0,0,1,.00049,5.65723l-39.59864,39.59814a4.00009,4.00009,0,0,1-5.65673-5.65722l39.59814-39.59815A4.00091,4.00091,0,0,1,170.42627,85.57324ZM100,8a4.0002,4.0002,0,0,1,4-4h48a4,4,0,0,1,0,8H104A4.0002,4.0002,0,0,1,100,8Z"/></svg>
               <time class="dialog__timer-value" datetime="" aria-label="">00ч</time>
             </span>
           </div>
