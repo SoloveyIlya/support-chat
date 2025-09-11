@@ -1,0 +1,594 @@
+/* ====== ПЕРЕМЕННЫЕ ======
+   Дизайн‑токены проекта. Используем только var(...) — никаких хардкодов цветов.
+   Это позволяет легко поддерживать темы и быстро менять визуальный язык.
+*/
+:root {
+  /* ====== БАЗА ====== */
+  --bg: #121116;
+  --panel: #17161b;
+  --panel-2: #121116;
+  --border: #1f2630;
+  --shadow: 0 6px 16px rgba(0,0,0,.35);
+  --radius: 12px;
+
+  /* ====== ТЕКСТ ====== */
+  --text: #e6e9ee;
+  --muted: #9aa5b1;
+  --white: #ffffff;
+
+  /* ====== БЕЙДЖИ / СТАТУСЫ ====== */
+  --badge-bg: #0f2a1a;
+  --badge: #2ecc71;
+  --badge-border: rgba(46, 204, 113, .25);
+
+  /* ====== АКЦЕНТЫ ====== */
+  --purple: #8c4dff;     /* фиолетовый для выделений/кнопок */
+  --danger: #ff5d5d;     /* ошибки, красный */
+
+  /* ====== ТАЙМЕР ====== */
+  --timer-bg: #3c2415;           /* фон пилюли */
+  --timer-text: #ff9b4a;         /* текст и иконка */
+  --timer-border: rgba(255,155,80,0.12);
+
+  /* ====== ДОПОЛНИТЕЛЬНЫЕ ПОВЕРХНОСТИ/СОСТОЯНИЯ ====== */
+  --surface-elevated: #18171d;   /* всплывающие меню, дропдауны */
+  --hover: #23222a;              /* hover для пунктов меню */
+  --hover-subtle: #161c24;       /* лёгкий hover/ghost-кнопки */
+  --selected: #151b23;           /* выбранный элемент списка */
+  --avatar-bg: #1a2029;          /* фон аватара-плейсхолдера */
+
+  /* ====== СКРОЛЛБАР ====== */
+  --scrollbar-thumb: #23232b;
+  --scrollbar-thumb-hover: #31313a;
+
+  /* ====== ЛЕЙАУТ ====== */
+  --sidebar-w: 340px;
+  --gutter: 16px;
+  --container-max: 1280px;
+}
+
+
+/* ====== БАЗА/RESET ======
+   Базовая типографика и сброс box-sizing. Верстка построена на flex/grid.
+*/
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html, body {
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial, sans-serif;
+  margin: 0;
+}
+
+img { display: inline-block; height: 1em; width: 1em; object-fit: contain; }
+button { font: inherit; color: inherit; }
+
+/* ====== Утилиты цвета ====== */
+.text-danger { color: var(--danger); }
+.text-muted { color: var(--muted); }
+
+
+/* ====== КОНТЕЙНЕР-ОБОЛОЧКА ======
+   Вся страница вмещается в .shell с ограничением по ширине.
+*/
+.shell{
+  margin: 0 auto;
+  max-width: var(--container-max);
+  height: 100vh;
+  max-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+
+/* ====== ХЕДЕР ====== */
+.app-header{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  padding: 12px 14px;
+  box-shadow: var(--shadow);
+}
+
+.app-header__left{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.app-header__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  font-size: 0;
+  padding: 0;
+}
+.app-header__icon img {
+  width: 36px;
+  height: 36px;
+  display: block;
+  border-radius: 12px;
+  background: var(--purple);
+  padding: 6px;
+}
+.app-header__title{ font-weight: 700; font-size: 15px; }
+
+/* маленький счётчик рядом с заголовком
+   Отображает общее количество активных диалогов
+*/
+.sidebar__counter{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.app-header__right{ display: flex; align-items: center; gap: 8px; }
+
+
+/* ====== ОСНОВНОЙ ЛЕЙАУТ ====== */
+.app{
+  display: grid;
+  grid-template-columns: var(--sidebar-w) 1fr;
+  flex: 1;
+  min-height: 0;
+  max-height: calc(100vh - 60px);
+  overflow: hidden;
+}
+
+
+/* ====== САЙДБАР ======
+   Левая колонка: проект + список диалогов + пагинация.
+*/
+.sidebar{
+  background: var(--panel);
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  height: 100%;
+  max-height: 100%;
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+}
+
+/* Строка проекта в сайдбаре */
+.sidebar__project{
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 24px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.sidebar__label{
+  color: var(--muted);
+  font-size: 12px;
+}
+
+
+/* ====== КАСТОМНЫЙ SELECT (DROPDOWN) ======
+   Нативный <select> прозрачный поверх. Видимая часть — кастомный UI.
+   Состояние открытия управляется классом .open снаружи из JS.
+*/
+.select {
+  position: relative;
+  flex: 1 1 auto;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+.select__native {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  pointer-events: none;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+}
+.select__display {
+  color: var(--text);
+  user-select: none;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+.select__arrow {
+  position: absolute;
+  right: 12px;
+  top: 57%;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+/* Кастомный dropdown
+   Список опций. Поддерживает роли/ARIA из JS.
+*/
+.select__dropdown {
+  display: none;
+  position: absolute;
+  left: 0;
+  top: calc(100% + 6px);
+  min-width: 100%;
+  background: var(--surface-elevated);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.45);
+  z-index: 10;
+  padding: 10px;
+  font-size: 14px;
+  color: var(--text);
+  font-weight: 500;
+  transition: opacity 0.15s;
+}
+.select.open .select__dropdown {
+  display: block;
+}
+.select__option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 18px 8px 32px;
+  cursor: pointer;
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.12s, color 0.12s;
+  position: relative;
+  border-radius: 12px;
+  margin: 4px;
+}
+.select__option:hover,
+.select__option:focus {
+  background: var(--hover);
+}
+.select__option--selected {
+  background: var(--purple);
+  color: var(--white);
+  border-radius: 12px;
+}
+.select__option--selected .select__check {
+  display: inline-block;
+}
+.select__check {
+  display: none;
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+}
+
+
+/* ====== Кнопки-иконки и кнопки ======
+   .icon-btn — квадратная иконка-кнопка (меню и т.п.)
+   .btn — универсальная кнопка, ghost-стиль по умолчанию.
+*/
+.icon-btn{
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  rotate: 90deg;
+}
+
+.btn{
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+}
+.btn:hover{ background: var(--hover-subtle); }
+.btn--ghost img{ width: 16px; height: 16px; }
+.btn--ghost img[src$="logout.svg"] {
+  width: 24px;
+  height: 24px;
+  display: block;
+  margin: 0 auto;
+}
+/* Поддержка inline-SVG иконок в ghost-кнопках
+   Иконки окрашиваются через currentColor от контейнера (.text-muted/.text-danger).
+*/
+.btn--ghost .icon{
+  width: 24px;
+  height: 24px;
+  display: block;
+  margin: 0 auto;
+}
+.btn--disabled {
+  opacity: 0.4;
+  cursor: not-allowed !important;
+  pointer-events: none;
+  background: var(--panel-2) !important;
+  color: var(--muted) !important;
+}
+
+
+/* ====== POPUP MENU ======
+   Универсальный выпадающий список. Открытие через [aria-hidden="false"].
+*/
+.popup-menu{
+  display: none;
+  position: absolute;
+  margin-top: 0;
+  background: var(--surface-elevated);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.45);
+  padding: 6px;
+  z-index: 20;
+  width: 280px;
+}
+.popup-menu[aria-hidden="false"]{ display: block; }
+
+.popup-menu__item{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  background: transparent;
+  border: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  border-radius: 10px;
+}
+.popup-menu__item:hover,
+.popup-menu__item:focus{
+  background: var(--hover);
+}
+.popup-menu__icon{
+  width: 20px;
+  height: 20px;
+}
+.popup-menu__label{
+  font-size: 14px;
+  font-weight: 500;
+}
+
+
+/* ====== СПИСОК ДИАЛОГОВ ======
+   Список с опцией выбора. Атрибут aria-selected управляется из JS.
+*/
+.dialog-list{
+  margin: 0;
+  padding: 8px 12px;
+  list-style: none;
+  overflow: auto;
+  min-height: 0;
+}
+
+.dialog{
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: start;
+  padding: 10px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.dialog + .dialog{ margin-top: 6px; }
+.dialog[aria-selected="true"]{
+  background: var(--selected);
+  border-color: var(--border);
+}
+.dialog:hover{ background: var(--panel-2); }
+
+/* Аватар-плейсхолдер */
+.avatar{
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--avatar-bg);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+}
+
+/* Контент диалога */
+.dialog__top{
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 5px;
+}
+.dialog__row{
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+
+/* Таймер-пил
+   Маленькая «пилюля» с временем. Спрятана по умолчанию.
+*/
+.dialog__timer{
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  border-radius: 14px;
+  background: var(--timer-bg);
+  color: var(--timer-text);
+  font-weight: 400;
+  font-size: 12px;
+  line-height: 1;
+  height: auto;
+  box-sizing: border-box;
+  border: 1px solid var(--timer-border);
+  transition: opacity .18s ease, transform .18s ease;
+  opacity: 1;
+  transform: translateY(0);
+}
+.dialog__timer[hidden]{ display: none; }
+.dialog__timer[data-visible="false"]{ opacity: 0; transform: translateY(-4px); pointer-events: none; }
+.dialog__timer-icon{
+  width: 14px;
+  height: 14px;
+  display: inline-block;
+  object-fit: contain;
+  align-self: center;
+  filter: invert(63%) sepia(77%) saturate(582%) hue-rotate(344deg) brightness(101%) contrast(101%);
+}
+.dialog__timer-value{ font-weight: 700; font-size: 12px; }
+
+.dialog__name{ font-weight: 600; }
+
+.badge{
+  font-size: 11px;
+  color: var(--badge);
+  background: var(--badge-bg);
+  border: 1px solid var(--badge-border);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.dialog__time{
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 5px;
+}
+.dialog__row .dialog__time{ margin-bottom: 0; }
+
+.dialog__meta{
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.dialog__menu .icon-btn{
+  width: 32px;
+  height: 32px;
+}
+
+
+/* ====== ПОДВАЛ САЙДБАРА ======
+   Пагинация списка диалогов.
+*/
+.sidebar__footer{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.pager{
+  color: var(--muted);
+  font-size: 12px;
+}
+
+
+/* ====== ПРАВАЯ ОБЛАСТЬ ======
+   Рабочая область справа. Пока показывает заглушку.
+*/
+.workspace{
+  background: var(--bg);
+  position: relative;
+  height: 100%;
+  max-height: 100%;
+  overflow: auto;
+}
+
+.workspace__empty{
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  text-align: center;
+  padding: 24px;
+}
+.workspace__title{
+  font-size: 18px;
+  font-weight: 400;
+  margin: 0;
+  color: var(--muted);
+}
+.workspace__hint{
+  color: var(--muted);
+  font-size: 14px;
+  margin-top: 8px;
+}
+
+
+/* ====== Фокус ======
+   Видимые контуры для клавиатурной навигации. Улучшает доступность.
+*/
+.dialog:focus-visible,
+.icon-btn:focus-visible,
+.btn:focus-visible,
+.select:has(.select__native:focus-visible){
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 10px;
+}
+
+
+/* >1280px — тянемся по ширине, сетка и размеры сохраняются */
+@media (min-width: 1281px){
+  .shell{ max-width: 100%; }
+}
+
+
+/* ====== СКРОЛЛБАР ======
+   Стилизация скроллбаров под тёмную тему.
+*/
+::-webkit-scrollbar {
+  width: 10px;
+  background: var(--panel);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 8px;
+  border: 2px solid var(--panel);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+::-webkit-scrollbar-corner {
+  background: var(--panel);
+}
+
+.sidebar,
+.dialog-list,
+.workspace {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--panel);
+}

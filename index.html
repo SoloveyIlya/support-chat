@@ -1,0 +1,135 @@
+<!doctype html>
+<!--
+  Страница «Активные диалоги»
+  Архитектура:
+    - Стили: дизайн‑токены и компоненты в styles.css; цвета только через var(...).
+    - Иконки: где требуется динамический цвет — inline‑SVG с currentColor; <img> оставляем с фиксированным цветом.
+    - Доступность: aria-* обновляются в scripts.js; :focus-visible стилизован.
+-->
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Активные диалоги — Чат поддержки</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="shell">
+    <!-- ХЕДЕР -->
+    <header class="app-header">
+      <div class="app-header__left">
+        <span class="app-header__icon" aria-hidden="true">
+          <img src="images/headphones.svg" alt="Наушники" />
+        </span>
+        <span class="app-header__title">Активные диалоги</span>
+        <span class="sidebar__counter" id="totalCounter">0</span>
+      </div>
+      <div class="app-header__right">
+        <button class="btn btn--ghost text-danger" id="btnLogout" type="button" title="Выйти" aria-label="Выйти">
+          <svg class="icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M15 3H7C5.89543 3 5 3.89543 5 5V19C5 20.1046 5.89543 21 7 21H15" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+            <path d="M19 12L15 8M19 12L15 16M19 12H9" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- ОСНОВНОЙ ЛЕЙАУТ: САЙДБАР + РАБОЧАЯ ОБЛАСТЬ -->
+    <div class="app">
+      <!-- ЛЕВАЯ КОЛОНКА -->
+      <aside class="sidebar" aria-label="Список диалогов">
+        <!-- В САЙДБАРЕ — ТОЛЬКО СТРОКА ПРОЕКТА -->
+        <div class="sidebar__project">
+          <label class="sidebar__label" for="projectSelect">Проект:</label>
+
+          <div class="select" aria-expanded="false">
+            <select id="projectSelect" class="select__native" aria-label="Выбор проекта">
+              <option selected>АвтоЭксперт RU</option>
+              <option>АвтоЭксперт UA</option>
+              <option>Top Drive</option>
+            </select>
+            <span class="select__display" id="projectDisplay" role="button" aria-haspopup="listbox">АвтоЭксперт RU</span>
+            <span class="select__arrow text-muted" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+            <div class="select__dropdown" id="projectDropdown" role="listbox" aria-labelledby="projectDisplay">
+              <div class="select__option select__option--selected" data-value="АвтоЭксперт RU" tabindex="0" aria-selected="true">
+                <span class="select__check" aria-hidden="true">
+                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M5 9.5l3 3 5-5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </span>
+                АвтоЭксперт RU
+              </div>
+              <div class="select__option" data-value="АвтоЭксперт UA" tabindex="0" aria-selected="false">
+                <span class="select__check" aria-hidden="true">
+                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M5 9.5l3 3 5-5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </span>
+                АвтоЭксперт UA
+              </div>
+              <div class="select__option" data-value="Top Drive" tabindex="0" aria-selected="false">
+                <span class="select__check" aria-hidden="true">
+                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M5 9.5l3 3 5-5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </span>
+                Top Drive
+              </div>
+            </div>
+          </div>
+
+          <button class="icon-btn text-muted" id="projectMenuBtn" title="Дополнительно" aria-haspopup="menu" aria-expanded="false" aria-controls="projectMenu" aria-label="Дополнительно">
+            <svg class="icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/>
+            </svg>
+          </button>
+          <div class="popup-menu" id="projectMenu" role="menu" aria-hidden="true">
+            <button class="popup-menu__item" role="menuitem" id="menuEditKb">
+              <img class="popup-menu__icon" src="images/database.svg" alt="" aria-hidden="true" />
+              <span class="popup-menu__label">Изменить базу знаний</span>
+            </button>
+            <button class="popup-menu__item" role="menuitem" id="menuOpenArchive">
+              <img class="popup-menu__icon" src="images/archive.svg" alt="" aria-hidden="true" />
+              <span class="popup-menu__label">Открыть архивные чаты</span>
+            </button>
+          </div>
+        </div>
+
+        <ul class="dialog-list" id="dialogList" role="listbox" aria-label="Активные диалоги">
+          <!-- Элементы списка рендерятся JS -->
+        </ul>
+
+        <footer class="sidebar__footer">
+          <button class="btn btn--ghost text-muted" id="btnPrev" type="button">
+            <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
+            </svg>
+            <span>Назад</span>
+          </button>
+
+          <div class="pager">
+            <span id="pageInfo">1 из 1</span>
+          </div>
+
+          <button class="btn btn--ghost text-muted" id="btnNext" type="button">
+            <span>Вперёд</span>
+            <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M8.59 16.59 13.17 12 8.59 7.41 10 6l6 6-6 6z"/>
+            </svg>
+          </button>
+        </footer>
+      </aside>
+
+      <!-- ПРАВАЯ ОБЛАСТЬ -->
+      <main class="workspace" aria-live="polite" aria-busy="false">
+        <div class="workspace__empty">
+          <h2 class="workspace__title">Выберите диалог</h2>
+          <p class="workspace__hint">
+            Выберите диалог из списка слева для просмотра переписки
+          </p>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="scripts.js" defer></script>
+</body>
+</html>
