@@ -126,6 +126,30 @@
             Выберите диалог из списка слева для просмотра переписки
           </p>
         </div>
+
+        <!-- Правый блок чата: отображается только когда выбран диалог -->
+        <div class="chat" id="chatPanel" hidden>
+          <!-- Шапка чата -->
+          <header class="chat__header" id="chatHeader">
+            <div class="chat__header-left">
+              <h2 class="chat__user" id="chatUser">user_XXX</h2>
+              <div class="chat__meta" id="chatMeta"><!-- meta заполняется JS: платформа • версия • UID --></div>
+            </div>
+            <div class="chat__header-right">
+              <span class="badge" id="chatBadge" aria-hidden="false">Нейросеть</span>
+            </div>
+          </header>
+
+          <!-- Тело чата (сообщения) -->
+            <div class="chat__body" id="chatBody">
+              <!-- TODO: сообщения чата -->
+            </div>
+
+          <!-- Нижняя область (футер) -->
+          <footer class="chat__footer" id="chatFooter">
+            <!-- TODO: футер -->
+          </footer>
+        </div>
       </main>
     </div>
   </div>
