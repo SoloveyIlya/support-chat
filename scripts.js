@@ -102,6 +102,11 @@
   /* ====== Рендер ======
      Перерисовывает список текущей страницы. Подписки на события — ниже.
   */
+  /**
+   * Рендерит текущую страницу списка диалогов на основе state.currentPage/state.pageSize.
+   * Обновляет пагинационные контролы и счётчик.
+   * Побочные эффекты: изменяет DOM внутри списка и элементов управления.
+   */
   function renderList() {
     const totalPages = Math.max(1, Math.ceil(MOCK_DIALOGS.length / state.pageSize));
     state.currentPage = Math.min(state.currentPage, totalPages);
@@ -119,19 +124,13 @@
       li.dataset.id = String(item.id);
       li.setAttribute('aria-selected', String(state.selectedId === item.id));
 
-      const isBot = item.origin !== 'operator';
-      const badgeClass = isBot ? 'badge__bot' : 'badge__person';
-      const badgeLabel = isBot ? 'Нейросеть' : 'Оператор';
-      // Inline SVG для динамического цвета через currentColor
-      const iconSvg = isBot
-        ? `<svg class="dialog__bot-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>`
-        : `<svg class="dialog__user-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
+      const badge = buildOriginBadge(item.origin);
 
       li.innerHTML = `
         <div class="dialog__body">
           <div class="dialog__top">
             <span class="dialog__name">${item.name}</span>
-            <span class="${badgeClass}" aria-label="${badgeLabel}">${iconSvg}${badgeLabel}</span>
+            <span class="${badge.className}" aria-label="${badge.label}">${badge.iconSvg}${badge.label}</span>
           </div>
           <div class="dialog__row">
             <div class="dialog__time">${item.time}</div>
@@ -165,6 +164,11 @@
     dom.totalCounter.textContent = String(MOCK_DIALOGS.length);
   }
 
+  /**
+   * Выбирает диалог, обновляет визуальное состояние списка и правую панель.
+   * Если открыто контекстное меню, пересобирает его под текущий диалог.
+   * @param {number|null} id
+   */
   function selectDialog(id) {
     state.selectedId = id;
     for (const node of dom.list.children) {
@@ -185,20 +189,15 @@
         dom.chatPanel.hidden = false;
         dom.workspaceEmpty.hidden = true;
         // Найти данные выбранного диалога
-        const data = MOCK_DIALOGS.find(d => d.id === id);
+  const data = getDialogById(id);
         if (data) {
           dom.chatUser.textContent = data.name;
           // meta: платформа + UID (условно формируем UID на базе id для примера)
           dom.chatMeta.textContent = `${data.platform} • UID ${String(500000 + data.id)}`;
           if (dom.chatBadge) {
-            const isBot = data.origin !== 'operator';
-            const badgeClass = isBot ? 'badge__bot' : 'badge__person';
-            const badgeLabel = isBot ? 'Нейросеть' : 'Оператор';
-            const iconSvg = isBot
-              ? `<svg class="dialog__bot-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>`
-              : `<svg class="dialog__user-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
-            dom.chatBadge.className = badgeClass;
-            dom.chatBadge.innerHTML = `${iconSvg}${badgeLabel}`;
+            const badge = buildOriginBadge(data.origin);
+            dom.chatBadge.className = badge.className;
+            dom.chatBadge.innerHTML = `${badge.iconSvg}${badge.label}`;
           }
         }
       } else {
@@ -206,6 +205,22 @@
         dom.workspaceEmpty.hidden = false;
       }
     }
+  }
+
+  /**
+   * Формирует данные бейджа происхождения диалога (бот / оператор).
+   * Без побочных эффектов. Используется при рендере списка и правой панели.
+   * @param {string} origin 'bot' | 'operator'
+   * @returns {{className:string,label:string,iconSvg:string,html:string,isBot:boolean}}
+   */
+  function buildOriginBadge(origin){
+    const isBot = origin !== 'operator';
+    const className = isBot ? 'badge__bot' : 'badge__person';
+    const label = isBot ? 'Нейросеть' : 'Оператор';
+    const iconSvg = isBot
+      ? `<svg class="dialog__bot-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>`
+      : `<svg class="dialog__user-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
+    return { className, label, iconSvg, html: `${iconSvg}${label}`, isBot };
   }
 
   /* ====== События: список (делегирование) ====== */
@@ -244,6 +259,7 @@
      Нативный select остаётся, но скрыт визуально. Видимым управляет .open.
   */
   function setDropdownOpen(isOpen) {
+    if (!dom.selectRoot) return;
     dom.selectRoot.classList.toggle('open', isOpen);
     setAriaExpanded(dom.selectRoot, isOpen);
   }
@@ -311,14 +327,23 @@
   /* ====== Контекстное меню диалога ======
      Одно меню создаётся на документ и переиспользуется для всех диалогов.
   */
-  const MENU_ITEMS = [
-    { icon: 'images/task.svg', label: 'Закрыть тикет (+)', id: 'dlgClosePlus' },
-    { icon: 'images/close.svg', label: 'Закрыть тикет (-)', id: 'dlgCloseMinus' },
-    { icon: 'images/time.svg', label: 'Запрос закрытия (+)', id: 'dlgReqPlus' },
-    { icon: 'images/warning.svg', label: 'Запрос закрытия (-)', id: 'dlgReqMinus' },
-    { icon: 'images/person.svg', label: 'Перевести на оператора', id: 'dlgToOperator' },
-    { icon: 'images/person-dash.svg', label: 'Отменить подписку', id: 'dlgUnsubscribe' },
-  ];
+  const ACTION_IDS = Object.freeze({
+    CLOSE_PLUS: 'dlgClosePlus',
+    CLOSE_MINUS: 'dlgCloseMinus',
+    REQ_PLUS: 'dlgReqPlus',
+    REQ_MINUS: 'dlgReqMinus',
+    TO_OPERATOR: 'dlgToOperator',
+    UNSUBSCRIBE: 'dlgUnsubscribe',
+  });
+
+  const MENU_ITEMS = Object.freeze([
+    Object.freeze({ icon: 'images/task.svg', label: 'Закрыть тикет (+)', id: ACTION_IDS.CLOSE_PLUS }),
+    Object.freeze({ icon: 'images/close.svg', label: 'Закрыть тикет (-)', id: ACTION_IDS.CLOSE_MINUS }),
+    Object.freeze({ icon: 'images/time.svg', label: 'Запрос закрытия (+)', id: ACTION_IDS.REQ_PLUS }),
+    Object.freeze({ icon: 'images/warning.svg', label: 'Запрос закрытия (-)', id: ACTION_IDS.REQ_MINUS }),
+    Object.freeze({ icon: 'images/person.svg', label: 'Перевести на оператора', id: ACTION_IDS.TO_OPERATOR }),
+    Object.freeze({ icon: 'images/person-dash.svg', label: 'Отменить подписку', id: ACTION_IDS.UNSUBSCRIBE }),
+  ]);
 
   /* ====== Обработчики действий меню диалога ======
      Каждая функция получает { dialogId, actionId, source }.
@@ -351,12 +376,12 @@
   }
 
   const ACTION_HANDLERS = {
-    dlgClosePlus: handleDlgClosePlus,
-    dlgCloseMinus: handleDlgCloseMinus,
-    dlgReqPlus: handleDlgReqPlus,
-    dlgReqMinus: handleDlgReqMinus,
-    dlgToOperator: handleDlgToOperator,
-    dlgUnsubscribe: handleDlgUnsubscribe,
+    [ACTION_IDS.CLOSE_PLUS]: handleDlgClosePlus,
+    [ACTION_IDS.CLOSE_MINUS]: handleDlgCloseMinus,
+    [ACTION_IDS.REQ_PLUS]: handleDlgReqPlus,
+    [ACTION_IDS.REQ_MINUS]: handleDlgReqMinus,
+    [ACTION_IDS.TO_OPERATOR]: handleDlgToOperator,
+    [ACTION_IDS.UNSUBSCRIBE]: handleDlgUnsubscribe,
   };
 
   // === Ленивая инициализация контейнера меню диалога ===
@@ -391,15 +416,20 @@
   }
 
   // Пересобирает пункты меню для конкретного диалога (фильтрация на этапе компоновки)
+  /**
+   * Пересобирает HTML контекстного меню для заданного dialogId.
+   * Фильтрует пункт перевода на оператора, если origin уже operator.
+   * @param {number|null} dialogId
+   */
   function renderDialogMenuForDialog(dialogId){
     const menuEl = ensureDialogMenuContainer();
-    const data = dialogId != null ? MOCK_DIALOGS.find(d => d.id === dialogId) : null;
+  const data = dialogId != null ? getDialogById(dialogId) : null;
     const filtered = MENU_ITEMS.filter(item => {
-      if (item.id === 'dlgToOperator' && data && data.origin === 'operator') return false;
+      if (item.id === ACTION_IDS.TO_OPERATOR && data && data.origin === 'operator') return false;
       return true;
     });
     menuEl.innerHTML = filtered.map(item => {
-      const isTransfer = item.id === 'dlgToOperator';
+  const isTransfer = item.id === ACTION_IDS.TO_OPERATOR;
       const iconHtml = isTransfer
         ? `<svg class="popup-menu__icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>`
         : `<img class="popup-menu__icon" src="${item.icon}" alt="" aria-hidden="true" />`;
@@ -412,6 +442,10 @@
     const li = dialogMenuAnchorBtn.closest('li.dialog');
     return li ? Number(li.dataset.id) : null;
   }
+  /**
+   * Открывает/закрывает контекстное меню диалога. При открытии пересобирает содержимое.
+   * @param {boolean} isOpen
+   */
   function setDialogMenuOpen(isOpen){
     if (isOpen){
       const dialogId = getCurrentDialogIdByAnchor() ?? state.selectedId ?? null;
@@ -423,12 +457,16 @@
     }
   }
 
+  /**
+   * Позиционирует контекстное меню относительно кнопки-анкера.
+   */
   function positionDialogMenu(){
     if (!dialogMenuAnchorBtn || !dom.dialogMenu) return;
     const btnRect = dialogMenuAnchorBtn.getBoundingClientRect();
     dom.dialogMenu.style.position = 'fixed';
     const top = Math.round(btnRect.bottom + 6);
-    let left = Math.round(btnRect.right - dom.dialogMenu.offsetWidth);
+    const menuWidth = dom.dialogMenu.offsetWidth || 0;
+    let left = Math.round(btnRect.right - menuWidth);
     if (left < 8) left = 8; // небольшой отступ от края
     dom.dialogMenu.style.top = top + 'px';
     dom.dialogMenu.style.left = left + 'px';
@@ -590,6 +628,16 @@
     timer.dataset.visible = 'false';
     timer.setAttribute('aria-hidden', 'true');
     return true;
+  }
+
+  /**
+   * Возвращает объект диалога по id или null.
+   * @param {number|null} id
+   * @returns {{id:number,name:string,time:string,platform:string,origin:string}|null}
+   */
+  function getDialogById(id){
+    if (id == null) return null;
+    return MOCK_DIALOGS.find(d => d.id === id) || null;
   }
 
   // Экспорт API для использования из консоли/других модулей
