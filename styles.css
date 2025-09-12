@@ -17,13 +17,25 @@
   --white: #ffffff;
 
   /* ====== БЕЙДЖИ / СТАТУСЫ ====== */
-  --badge-bg: #0f2a1a;
-  --badge: #2ecc71;
-  --badge-border: rgba(46, 204, 113, .25);
+  --badge-bg: #33cc331a;
+  --badge: #33cc33;
+  --badge-border: #33cc3333;
 
   /* ====== АКЦЕНТЫ ====== */
-  --purple: #8c4dff;     /* фиолетовый для выделений/кнопок */
-  --danger: #ff5d5d;     /* ошибки, красный */
+  --purple: #8758f3;     /* фиолетовый для выделений/кнопок */
+  --danger: #dc2626;     /* ошибки, красный */
+  --danger-hover: #ef44441a; /* hover/active для опасных действий */
+  --accent: #8758f3;     /* основной акцент (дублирует purple для унификации имени) */
+
+  /* ====== ICON BUTTON STATES ====== */
+  --icon-btn-hover-bg: var(--accent);
+  --icon-btn-hover-color: var(--white);
+  --icon-btn-focus-bg: var(--accent);
+  --icon-btn-focus-color: var(--white);
+
+  /* ====== PROJECT MENU ITEM STATES ====== */
+  --menu-accent-bg: var(--accent);
+  --menu-accent-color: var(--white);
 
   /* ====== ТАЙМЕР ====== */
   --timer-bg: rgba(255, 93, 93, 0.1);         /* фон пилюли */
@@ -45,6 +57,12 @@
   --sidebar-w: 340px;
   --gutter: 16px;
   --container-max: 1280px;
+
+  /* ====== DIALOG STATES ====== */
+  --dialog-border: #2b2b31;              /* стандартная граница элемента */
+  --dialog-hover-bg: #303036;            /* фон при hover (когда не выбран) */
+  --dialog-selected-bg: #8758f31a;       /* фон выбранного */
+  --dialog-selected-border: #8758f34d;   /* граница выбранного */
 }
 
 
@@ -298,6 +316,21 @@ button { font: inherit; color: inherit; }
   border: 1px solid transparent;
   cursor: pointer;
   rotate: 90deg;
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+}
+
+/* Hover: подсвечиваем акцентом только невыбранные и доступные кнопки */
+.icon-btn:hover{
+  background: var(--icon-btn-hover-bg);
+  border-color: var(--icon-btn-hover-bg);
+  color: var(--icon-btn-hover-color);
+}
+
+/* Focus-visible: акцент + сохраняем outline из общего правила (var(--accent)) */
+.icon-btn:focus-visible{
+  background: var(--icon-btn-focus-bg);
+  border-color: var(--icon-btn-focus-bg);
+  color: var(--icon-btn-focus-color);
 }
 
 .btn{
@@ -309,6 +342,7 @@ button { font: inherit; color: inherit; }
   border: 1px solid var(--border);
   border-radius: 10px;
   cursor: pointer;
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease;
 }
 .btn:hover{ background: var(--hover-subtle); }
 .btn--ghost img{ width: 16px; height: 16px; }
@@ -333,6 +367,37 @@ button { font: inherit; color: inherit; }
   pointer-events: none;
   background: var(--panel-2) !important;
   color: var(--muted) !important;
+}
+
+/* ПАГИНАЦИЯ: акцентные состояния только для #btnPrev и #btnNext */
+#btnPrev,
+#btnNext {
+  position: relative;
+  color: var(--white);
+}
+#btnPrev:hover:not(.btn--disabled),
+#btnNext:hover:not(.btn--disabled) {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--white);
+}
+#btnPrev:focus-visible:not(.btn--disabled),
+#btnNext:focus-visible:not(.btn--disabled) {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--white);
+}
+
+/* ЛОГАУТ: те же акцентные hover/focus, но при нажатии (active) — опасный цвет */
+#btnLogout {
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+}
+#btnLogout:hover,
+#btnLogout:focus-visible {
+  background: var(--danger-hover);
+}
+#btnLogout:active {
+  background: var(--danger-hover);
 }
 
 
@@ -380,6 +445,28 @@ button { font: inherit; color: inherit; }
   font-weight: 500;
 }
 
+/* Акцентные состояния ТОЛЬКО для пунктов внутри #projectMenu */
+#projectMenu .popup-menu__item{
+  transition: background-color .15s ease, color .15s ease;
+}
+#projectMenu .popup-menu__item:hover,
+#projectMenu .popup-menu__item:focus,
+#projectMenu .popup-menu__item:focus-visible{
+  background: var(--menu-accent-bg);
+  color: var(--menu-accent-color);
+}
+
+/* Акцентная подсветка пунктов контекстного меню диалога */
+#dialogMenu .popup-menu__item{
+  transition: background-color .15s ease, color .15s ease;
+}
+#dialogMenu .popup-menu__item:hover,
+#dialogMenu .popup-menu__item:focus,
+#dialogMenu .popup-menu__item:focus-visible{
+  background: var(--accent);
+  color: var(--white);
+}
+
 
 /* ====== СПИСОК ДИАЛОГОВ ======
    Список с опцией выбора. Атрибут aria-selected управляется из JS.
@@ -399,15 +486,25 @@ button { font: inherit; color: inherit; }
   align-items: start;
   padding: 10px;
   background: transparent;
-  border: 1px solid var(--border);
+  border: 1px solid var(--dialog-border);
   border-radius: 10px;
+  transition: background .15s ease, border-color .15s ease;
 }
 .dialog + .dialog{ margin-top: 6px; }
-.dialog[aria-selected="true"]{
-  background: var(--selected);
-  border-color: var(--border);
+/* Hover (только если не выбран) */
+.dialog:not([aria-selected="true"]):hover{
+  background: var(--dialog-hover-bg);
 }
-.dialog:hover{ background: var(--panel-2); }
+/* Выбранный */
+.dialog[aria-selected="true"]{
+  background: var(--dialog-selected-bg);
+  border-color: var(--dialog-selected-border);
+}
+/* Сохраняем цвет выбранного при hover */
+.dialog[aria-selected="true"]:hover{
+  background: var(--dialog-selected-bg);
+  border-color: var(--dialog-selected-border);
+}
 
 /* Аватар-плейсхолдер */
 .avatar{

@@ -118,7 +118,7 @@
           <div class="dialog__top">
             <span class="dialog__name">${item.name}</span>
             <span class="badge">
-              <svg class="dialog__bot-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><line x1="8" y1="16" x2="8" y2="16" /><line x1="16" y1="16" x2="16" y2="16" /></svg>
+              <img class="dialog__bot-icon" src="images/bot.svg" width="18" height="18" alt="Бот" aria-hidden="true" />
               Нейросеть
             </span>
           </div>
@@ -395,6 +395,18 @@
       const isOpen = dom.projectMenu.getAttribute('aria-hidden') === 'false';
       setProjectMenuOpen(!isOpen);
     });
+    // Закрывать меню проекта после выбора пункта
+    if (dom.projectMenu) {
+      dom.projectMenu.addEventListener('click', (e) => {
+        const item = e.target.closest('.popup-menu__item');
+        if (!item) return;
+        // Логика обработки действия пункта (пока только лог)
+        console.log('Project menu action:', item.id || '(no-id)');
+        setProjectMenuOpen(false);
+        // Убираем фокус с пункта, чтобы не оставалось визуального состояния
+        if (document.activeElement === item) item.blur();
+      });
+    }
     window.addEventListener('resize', () => {
       if (dom.projectMenu.getAttribute('aria-hidden') === 'false') positionProjectMenu();
       if (dom.dialogMenu && dom.dialogMenu.getAttribute('aria-hidden') === 'false') positionDialogMenu();
@@ -408,12 +420,19 @@
     dom.dialogMenu = createDialogMenu();
 
     // Обработчики пунктов меню
-    dom.dialogMenu.addEventListener('click', (ev) => {
-      const item = ev.target.closest('.popup-menu__item');
-      if (!item) return;
-      setDialogMenuOpen(false);
-      console.log('Dialog menu action:', item.id, 'for dialogId=', getCurrentDialogIdByAnchor());
-    });
+      dom.dialogMenu.addEventListener('click', (ev) => {
+        const itemBtn = ev.target.closest('.popup-menu__item');
+        if (!itemBtn || dom.dialogMenu.getAttribute('aria-hidden') === 'true') return;
+        ev.stopPropagation();
+        const dialogId = getCurrentDialogIdByAnchor();
+        const actionId = itemBtn.id;
+        // Здесь можно внедрить реальную бизнес-логику (fetch/emit/dispatch)
+        console.log('[dialogMenu] action', { dialogId, actionId });
+        // Закрыть меню
+        setDialogMenuOpen(false);
+        // Вернуть фокус кнопке-источнику (для доступности клавиатурой)
+        if (dialogMenuAnchorBtn) dialogMenuAnchorBtn.focus();
+      });
   }
 
   // === helper: безопасно обновляет таймер внутри li ===
