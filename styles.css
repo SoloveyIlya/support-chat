@@ -17,13 +17,29 @@
   --white: #ffffff;
 
   /* ====== БЕЙДЖИ / СТАТУСЫ ====== */
-  --badge-bg: #0f2a1a;
-  --badge: #2ecc71;
-  --badge-border: rgba(46, 204, 113, .25);
+  --badge__bot-bg: #33cc331a;
+  --badge__bot: #33cc33;
+  --badge__bot-border: #33cc3333;
+
+  --badge__person-bg: #8758f31a;
+  --badge__person: #8758f3;
+  --badge__person-border: #8758f333;
 
   /* ====== АКЦЕНТЫ ====== */
-  --purple: #8c4dff;     /* фиолетовый для выделений/кнопок */
-  --danger: #ff5d5d;     /* ошибки, красный */
+  --purple: #8758f3;     /* фиолетовый для выделений/кнопок */
+  --danger: #dc2626;     /* ошибки, красный */
+  --danger-hover: #ef44441a; /* hover/active для опасных действий */
+  --accent: #8758f3;     /* основной акцент (дублирует purple для унификации имени) */
+
+  /* ====== ICON BUTTON STATES ====== */
+  --icon-btn-hover-bg: var(--accent);
+  --icon-btn-hover-color: var(--white);
+  --icon-btn-focus-bg: var(--accent);
+  --icon-btn-focus-color: var(--white);
+
+  /* ====== PROJECT MENU ITEM STATES ====== */
+  --menu-accent-bg: var(--accent);
+  --menu-accent-color: var(--white);
 
   /* ====== ТАЙМЕР ====== */
   --timer-bg: rgba(255, 93, 93, 0.1);         /* фон пилюли */
@@ -45,6 +61,12 @@
   --sidebar-w: 340px;
   --gutter: 16px;
   --container-max: 1280px;
+
+  /* ====== DIALOG STATES ====== */
+  --dialog-border: #2b2b31;              /* стандартная граница элемента */
+  --dialog-hover-bg: #303036;            /* фон при hover (когда не выбран) */
+  --dialog-selected-bg: #8758f31a;       /* фон выбранного */
+  --dialog-selected-border: #8758f34d;   /* граница выбранного */
 }
 
 
@@ -298,6 +320,21 @@ button { font: inherit; color: inherit; }
   border: 1px solid transparent;
   cursor: pointer;
   rotate: 90deg;
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+}
+
+/* Hover: подсвечиваем акцентом только невыбранные и доступные кнопки */
+.icon-btn:hover{
+  background: var(--icon-btn-hover-bg);
+  border-color: var(--icon-btn-hover-bg);
+  color: var(--icon-btn-hover-color);
+}
+
+/* Focus-visible: акцент + сохраняем outline из общего правила (var(--accent)) */
+.icon-btn:focus-visible{
+  background: var(--icon-btn-focus-bg);
+  border-color: var(--icon-btn-focus-bg);
+  color: var(--icon-btn-focus-color);
 }
 
 .btn{
@@ -309,6 +346,7 @@ button { font: inherit; color: inherit; }
   border: 1px solid var(--border);
   border-radius: 10px;
   cursor: pointer;
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease;
 }
 .btn:hover{ background: var(--hover-subtle); }
 .btn--ghost img{ width: 16px; height: 16px; }
@@ -333,6 +371,37 @@ button { font: inherit; color: inherit; }
   pointer-events: none;
   background: var(--panel-2) !important;
   color: var(--muted) !important;
+}
+
+/* ПАГИНАЦИЯ: акцентные состояния только для #btnPrev и #btnNext */
+#btnPrev,
+#btnNext {
+  position: relative;
+  color: var(--white);
+}
+#btnPrev:hover:not(.btn--disabled),
+#btnNext:hover:not(.btn--disabled) {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--white);
+}
+#btnPrev:focus-visible:not(.btn--disabled),
+#btnNext:focus-visible:not(.btn--disabled) {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--white);
+}
+
+/* ЛОГАУТ: те же акцентные hover/focus, но при нажатии (active) — опасный цвет */
+#btnLogout {
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+}
+#btnLogout:hover,
+#btnLogout:focus-visible {
+  background: var(--danger-hover);
+}
+#btnLogout:active {
+  background: var(--danger-hover);
 }
 
 
@@ -380,6 +449,28 @@ button { font: inherit; color: inherit; }
   font-weight: 500;
 }
 
+/* Акцентные состояния ТОЛЬКО для пунктов внутри #projectMenu */
+#projectMenu .popup-menu__item{
+  transition: background-color .15s ease, color .15s ease;
+}
+#projectMenu .popup-menu__item:hover,
+#projectMenu .popup-menu__item:focus,
+#projectMenu .popup-menu__item:focus-visible{
+  background: var(--menu-accent-bg);
+  color: var(--menu-accent-color);
+}
+
+/* Акцентная подсветка пунктов контекстного меню диалога */
+#dialogMenu .popup-menu__item{
+  transition: background-color .15s ease, color .15s ease;
+}
+#dialogMenu .popup-menu__item:hover,
+#dialogMenu .popup-menu__item:focus,
+#dialogMenu .popup-menu__item:focus-visible{
+  background: var(--accent);
+  color: var(--white);
+}
+
 
 /* ====== СПИСОК ДИАЛОГОВ ======
    Список с опцией выбора. Атрибут aria-selected управляется из JS.
@@ -399,15 +490,25 @@ button { font: inherit; color: inherit; }
   align-items: start;
   padding: 10px;
   background: transparent;
-  border: 1px solid var(--border);
+  border: 1px solid var(--dialog-border);
   border-radius: 10px;
+  transition: background .15s ease, border-color .15s ease;
 }
 .dialog + .dialog{ margin-top: 6px; }
-.dialog[aria-selected="true"]{
-  background: var(--selected);
-  border-color: var(--border);
+/* Hover (только если не выбран) */
+.dialog:not([aria-selected="true"]):hover{
+  background: var(--dialog-hover-bg);
 }
-.dialog:hover{ background: var(--panel-2); }
+/* Выбранный */
+.dialog[aria-selected="true"]{
+  background: var(--dialog-selected-bg);
+  border-color: var(--dialog-selected-border);
+}
+/* Сохраняем цвет выбранного при hover */
+.dialog[aria-selected="true"]:hover{
+  background: var(--dialog-selected-bg);
+  border-color: var(--dialog-selected-border);
+}
 
 /* Аватар-плейсхолдер */
 .avatar{
@@ -424,12 +525,20 @@ button { font: inherit; color: inherit; }
 
 /* Иконка бота для "Нейросеть" */
 .dialog__bot-icon {
-  width: 16px;
-  height: 16px;
+  width: 12px;
+  height: 12px;
   display: inline-block;
   vertical-align: middle;
-  margin-right: 6px;
-  color: var(--badge);
+  color: var(--badge__bot);
+}
+
+/* Иконка человека для "Оператор" */
+.dialog__user-icon {
+  width: 12px;
+  height: 12px;
+  display: inline-block;
+  vertical-align: middle;
+  color: var(--accent);
 }
 
 /* Контент диалога */
@@ -481,11 +590,23 @@ button { font: inherit; color: inherit; }
 
 .dialog__name{ font-weight: 700; font-size: 15px; }
 
-.badge{
+.badge__bot{
   font-size: 12px;
-  color: var(--badge);
-  background: var(--badge-bg);
-  border: 1px solid var(--badge-border);
+  color: var(--badge__bot);
+  background: var(--badge__bot-bg);
+  border: 1px solid var(--badge__bot-border);
+  padding: 2px 8px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.badge__person{
+  font-size: 12px;
+  color: var(--badge__person);
+  background: var(--badge__person-bg);
+  border: 1px solid var(--badge__person-border);
   padding: 2px 8px;
   border-radius: 999px;
   display: inline-flex;
@@ -604,4 +725,52 @@ button { font: inherit; color: inherit; }
 .workspace {
   scrollbar-width: thin;
   scrollbar-color: var(--scrollbar-thumb) var(--panel);
+}
+
+/* ====== ЧАТ (правая панель при выборе диалога) ======
+   Структура: header (фикс высота по контенту) + body (прокрутка) + footer.
+   По умолчанию скрыт атрибутом hidden.  */
+.chat[hidden]{ display:none; }
+.chat{
+  position: relative;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-height: 100%;
+  background: var(--panel-2);
+  border-left: 1px solid var(--border);
+}
+.chat__header{
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.chat__header-left{ display:flex; flex-direction:column; gap:6px; }
+.chat__user{ margin:0; font-size:16px; font-weight:700; }
+.chat__meta{ font-size:12px; color: var(--muted); }
+.chat__header-right{ display:flex; align-items:center; gap:8px; }
+
+.chat__body{
+  flex:1 1 auto;
+  min-height:0;
+  overflow-y:auto;
+  padding: 24px 24px 16px;
+  display:flex;
+  flex-direction:column;
+  gap:16px;
+}
+
+.chat__footer{
+  border-top: 1px solid var(--border);
+  padding: 16px;
+  min-height: 80px; /* резерв под будущий инпут / кнопки */
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color: var(--muted);
+  font-size: 12px;
 }

@@ -18,31 +18,31 @@
      В реальной интеграции заменить на загрузку с бэка и реактивный ререндер.
   */
   const MOCK_DIALOGS = [
-    { id: 1, name: 'user_1', time: '10:15', platform: 'Android 13 • ФРИИ 1.3.7' },
-    { id: 2, name: 'user_2', time: '09:42', platform: 'iOS 16.7 • ФРИИ 2.8.6' },
-    { id: 3, name: 'user_3', time: '08:30', platform: 'Android 12 • ФРИИ 1.2.1' },
-    { id: 4, name: 'user_4', time: '07:55', platform: 'iOS 16.9 • ФРИИ 1.6.0' },
-    { id: 5, name: 'user_5', time: '07:12', platform: 'Android 11 • ФРИИ 2.4.7' },
-    { id: 6, name: 'user_6', time: '06:48', platform: 'iOS 15.4 • ФРИИ 1.1.0' },
-    { id: 7, name: 'user_7', time: '06:20', platform: 'Android 13 • ФРИИ 1.3.7' },
-    { id: 8, name: 'user_8', time: '05:59', platform: 'iOS 16.8 • ФРИИ 2.4.7' },
-    { id: 9, name: 'user_9', time: '05:30', platform: 'Android 10 • ФРИИ 1.0.0' },
-    { id: 10, name: 'user_10', time: '05:01', platform: 'iOS 16.7 • ФРИИ 1.6.9' },
-    { id: 11, name: 'user_11', time: '04:45', platform: 'Android 13 • ФРИИ 2.8.6' },
-    { id: 12, name: 'user_12', time: '04:20', platform: 'iOS 16.9 • ФРИИ 1.6.0' },
-    { id: 13, name: 'user_13', time: '03:58', platform: 'Android 12 • ФРИИ 1.2.1' },
-    { id: 14, name: 'user_14', time: '03:40', platform: 'iOS 15.4 • ФРИИ 1.1.0' },
-    { id: 15, name: 'user_15', time: '03:20', platform: 'Android 11 • ФРИИ 2.4.7' },
-    { id: 16, name: 'user_16', time: '03:05', platform: 'iOS 16.7 • ФРИИ 2.8.6' },
-    { id: 17, name: 'user_17', time: '02:50', platform: 'Android 13 • ФРИИ 1.3.7' },
-    { id: 18, name: 'user_18', time: '02:35', platform: 'iOS 16.8 • ФРИИ 2.4.7' },
-    { id: 19, name: 'user_19', time: '02:20', platform: 'Android 10 • ФРИИ 1.0.0' },
-    { id: 20, name: 'user_20', time: '02:05', platform: 'iOS 16.7 • ФРИИ 1.6.9' },
-    { id: 21, name: 'user_21', time: '01:50', platform: 'Android 13 • ФРИИ 2.8.6' },
-    { id: 22, name: 'user_22', time: '01:35', platform: 'iOS 16.9 • ФРИИ 1.6.0' },
-    { id: 23, name: 'user_23', time: '01:20', platform: 'Android 12 • ФРИИ 1.2.1' },
-    { id: 24, name: 'user_24', time: '01:05', platform: 'iOS 15.4 • ФРИИ 1.1.0' },
-    { id: 25, name: 'user_25', time: '00:50', platform: 'Android 11 • ФРИИ 2.4.7' },
+    { id: 1, name: 'user_1', time: '10:15', platform: 'Android 13 • ФРИИ 1.3.7', origin: 'bot' },
+    { id: 2, name: 'user_2', time: '09:42', platform: 'iOS 16.7 • ФРИИ 2.8.6', origin: 'operator' },
+    { id: 3, name: 'user_3', time: '08:30', platform: 'Android 12 • ФРИИ 1.2.1', origin: 'bot' },
+    { id: 4, name: 'user_4', time: '07:55', platform: 'iOS 16.9 • ФРИИ 1.6.0', origin: 'operator' },
+    { id: 5, name: 'user_5', time: '07:12', platform: 'Android 11 • ФРИИ 2.4.7', origin: 'bot' },
+    { id: 6, name: 'user_6', time: '06:48', platform: 'iOS 15.4 • ФРИИ 1.1.0', origin: 'bot' },
+    { id: 7, name: 'user_7', time: '06:20', platform: 'Android 13 • ФРИИ 1.3.7', origin: 'operator' },
+    { id: 8, name: 'user_8', time: '05:59', platform: 'iOS 16.8 • ФРИИ 2.4.7', origin: 'bot' },
+    { id: 9, name: 'user_9', time: '05:30', platform: 'Android 10 • ФРИИ 1.0.0', origin: 'bot' },
+    { id: 10, name: 'user_10', time: '05:01', platform: 'iOS 16.7 • ФРИИ 1.6.9', origin: 'operator' },
+    { id: 11, name: 'user_11', time: '04:45', platform: 'Android 13 • ФРИИ 2.8.6', origin: 'bot' },
+    { id: 12, name: 'user_12', time: '04:20', platform: 'iOS 16.9 • ФРИИ 1.6.0', origin: 'operator' },
+    { id: 13, name: 'user_13', time: '03:58', platform: 'Android 12 • ФРИИ 1.2.1', origin: 'bot' },
+    { id: 14, name: 'user_14', time: '03:40', platform: 'iOS 15.4 • ФРИИ 1.1.0', origin: 'bot' },
+    { id: 15, name: 'user_15', time: '03:20', platform: 'Android 11 • ФРИИ 2.4.7', origin: 'operator' },
+    { id: 16, name: 'user_16', time: '03:05', platform: 'iOS 16.7 • ФРИИ 2.8.6', origin: 'bot' },
+    { id: 17, name: 'user_17', time: '02:50', platform: 'Android 13 • ФРИИ 1.3.7', origin: 'bot' },
+    { id: 18, name: 'user_18', time: '02:35', platform: 'iOS 16.8 • ФРИИ 2.4.7', origin: 'operator' },
+    { id: 19, name: 'user_19', time: '02:20', platform: 'Android 10 • ФРИИ 1.0.0', origin: 'bot' },
+    { id: 20, name: 'user_20', time: '02:05', platform: 'iOS 16.7 • ФРИИ 1.6.9', origin: 'bot' },
+    { id: 21, name: 'user_21', time: '01:50', platform: 'Android 13 • ФРИИ 2.8.6', origin: 'operator' },
+    { id: 22, name: 'user_22', time: '01:35', platform: 'iOS 16.9 • ФРИИ 1.6.0', origin: 'bot' },
+    { id: 23, name: 'user_23', time: '01:20', platform: 'Android 12 • ФРИИ 1.2.1', origin: 'bot' },
+    { id: 24, name: 'user_24', time: '01:05', platform: 'iOS 15.4 • ФРИИ 1.1.0', origin: 'operator' },
+    { id: 25, name: 'user_25', time: '00:50', platform: 'Android 11 • ФРИИ 2.4.7', origin: 'bot' },
   ];
 
   /* ====== Состояние ======
@@ -63,6 +63,12 @@
     btnPrev: document.getElementById('btnPrev'),
     btnNext: document.getElementById('btnNext'),
     totalCounter: document.getElementById('totalCounter'),
+    // Правая панель чата
+    workspaceEmpty: document.querySelector('.workspace__empty'),
+    chatPanel: document.getElementById('chatPanel'),
+    chatUser: document.getElementById('chatUser'),
+    chatMeta: document.getElementById('chatMeta'),
+    chatBadge: document.getElementById('chatBadge'),
     projectSelect: document.getElementById('projectSelect'),
     projectDisplay: document.getElementById('projectDisplay'),
     selectRoot: document.querySelector('.select'),
@@ -96,6 +102,11 @@
   /* ====== Рендер ======
      Перерисовывает список текущей страницы. Подписки на события — ниже.
   */
+  /**
+   * Рендерит текущую страницу списка диалогов на основе state.currentPage/state.pageSize.
+   * Обновляет пагинационные контролы и счётчик.
+   * Побочные эффекты: изменяет DOM внутри списка и элементов управления.
+   */
   function renderList() {
     const totalPages = Math.max(1, Math.ceil(MOCK_DIALOGS.length / state.pageSize));
     state.currentPage = Math.min(state.currentPage, totalPages);
@@ -113,14 +124,13 @@
       li.dataset.id = String(item.id);
       li.setAttribute('aria-selected', String(state.selectedId === item.id));
 
+      const badge = buildOriginBadge(item.origin);
+
       li.innerHTML = `
         <div class="dialog__body">
           <div class="dialog__top">
             <span class="dialog__name">${item.name}</span>
-            <span class="badge">
-              <svg class="dialog__bot-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><line x1="8" y1="16" x2="8" y2="16" /><line x1="16" y1="16" x2="16" y2="16" /></svg>
-              Нейросеть
-            </span>
+            <span class="${badge.className}" aria-label="${badge.label}">${badge.iconSvg}${badge.label}</span>
           </div>
           <div class="dialog__row">
             <div class="dialog__time">${item.time}</div>
@@ -154,11 +164,63 @@
     dom.totalCounter.textContent = String(MOCK_DIALOGS.length);
   }
 
+  /**
+   * Выбирает диалог, обновляет визуальное состояние списка и правую панель.
+   * Если открыто контекстное меню, пересобирает его под текущий диалог.
+   * @param {number|null} id
+   */
   function selectDialog(id) {
     state.selectedId = id;
     for (const node of dom.list.children) {
       node.setAttribute('aria-selected', String(node.dataset.id == String(id)));
     }
+    // Если контекстное меню уже открыто во время смены seleção — обновить его содержимое
+    if (dom.dialogMenu && dom.dialogMenu.getAttribute('aria-hidden') === 'false') {
+      if (!dialogMenuAnchorBtn) {
+        const currentLi = dom.list.querySelector(`.dialog[data-id="${String(id)}"]`);
+        if (currentLi) dialogMenuAnchorBtn = currentLi.querySelector('.dialog__menu .icon-btn');
+      }
+      renderDialogMenuForDialog(id);
+      positionDialogMenu();
+    }
+    // Показ/скрытие правой панели
+    if (dom.chatPanel && dom.workspaceEmpty) {
+      if (id != null) {
+        dom.chatPanel.hidden = false;
+        dom.workspaceEmpty.hidden = true;
+        // Найти данные выбранного диалога
+  const data = getDialogById(id);
+        if (data) {
+          dom.chatUser.textContent = data.name;
+          // meta: платформа + UID (условно формируем UID на базе id для примера)
+          dom.chatMeta.textContent = `${data.platform} • UID ${String(500000 + data.id)}`;
+          if (dom.chatBadge) {
+            const badge = buildOriginBadge(data.origin);
+            dom.chatBadge.className = badge.className;
+            dom.chatBadge.innerHTML = `${badge.iconSvg}${badge.label}`;
+          }
+        }
+      } else {
+        dom.chatPanel.hidden = true;
+        dom.workspaceEmpty.hidden = false;
+      }
+    }
+  }
+
+  /**
+   * Формирует данные бейджа происхождения диалога (бот / оператор).
+   * Без побочных эффектов. Используется при рендере списка и правой панели.
+   * @param {string} origin 'bot' | 'operator'
+   * @returns {{className:string,label:string,iconSvg:string,html:string,isBot:boolean}}
+   */
+  function buildOriginBadge(origin){
+    const isBot = origin !== 'operator';
+    const className = isBot ? 'badge__bot' : 'badge__person';
+    const label = isBot ? 'Нейросеть' : 'Оператор';
+    const iconSvg = isBot
+      ? `<svg class="dialog__bot-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>`
+      : `<svg class="dialog__user-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
+    return { className, label, iconSvg, html: `${iconSvg}${label}`, isBot };
   }
 
   /* ====== События: список (делегирование) ====== */
@@ -197,6 +259,7 @@
      Нативный select остаётся, но скрыт визуально. Видимым управляет .open.
   */
   function setDropdownOpen(isOpen) {
+    if (!dom.selectRoot) return;
     dom.selectRoot.classList.toggle('open', isOpen);
     setAriaExpanded(dom.selectRoot, isOpen);
   }
@@ -264,29 +327,114 @@
   /* ====== Контекстное меню диалога ======
      Одно меню создаётся на документ и переиспользуется для всех диалогов.
   */
-  const MENU_ITEMS = [
-    { icon: 'images/task.svg', label: 'Закрыть тикет (+)', id: 'dlgClosePlus' },
-    { icon: 'images/close.svg', label: 'Закрыть тикет (-)', id: 'dlgCloseMinus' },
-    { icon: 'images/time.svg', label: 'Запрос закрытия (+)', id: 'dlgReqPlus' },
-    { icon: 'images/warning.svg', label: 'Запрос закрытия (-)', id: 'dlgReqMinus' },
-    { icon: 'images/person.svg', label: 'Перевести на оператора', id: 'dlgToOperator' },
-    { icon: 'images/person-dash.svg', label: 'Отменить подписку', id: 'dlgUnsubscribe' },
-  ];
+  const ACTION_IDS = Object.freeze({
+    CLOSE_PLUS: 'dlgClosePlus',
+    CLOSE_MINUS: 'dlgCloseMinus',
+    REQ_PLUS: 'dlgReqPlus',
+    REQ_MINUS: 'dlgReqMinus',
+    TO_OPERATOR: 'dlgToOperator',
+    UNSUBSCRIBE: 'dlgUnsubscribe',
+  });
 
-  function createDialogMenu() {
+  const MENU_ITEMS = Object.freeze([
+    Object.freeze({ icon: 'images/task.svg', label: 'Закрыть тикет (+)', id: ACTION_IDS.CLOSE_PLUS }),
+    Object.freeze({ icon: 'images/close.svg', label: 'Закрыть тикет (-)', id: ACTION_IDS.CLOSE_MINUS }),
+    Object.freeze({ icon: 'images/time.svg', label: 'Запрос закрытия (+)', id: ACTION_IDS.REQ_PLUS }),
+    Object.freeze({ icon: 'images/warning.svg', label: 'Запрос закрытия (-)', id: ACTION_IDS.REQ_MINUS }),
+    Object.freeze({ icon: 'images/person.svg', label: 'Перевести на оператора', id: ACTION_IDS.TO_OPERATOR }),
+    Object.freeze({ icon: 'images/person-dash.svg', label: 'Отменить подписку', id: ACTION_IDS.UNSUBSCRIBE }),
+  ]);
+
+  /* ====== Обработчики действий меню диалога ======
+     Каждая функция получает { dialogId, actionId, source }.
+     Содержимое пока TODO — здесь будет интеграция (fetch / emit / state update).
+     Архитектурный подход: единый диспетчер ACTION_HANDLERS по id кнопки.
+  */
+  function handleDlgClosePlus(ctx){
+    // TODO: Реализовать логику «Закрыть тикет (+)» (позитивное закрытие тикета)
+    console.log('[dialog action] ClosePlus', ctx);
+  }
+  function handleDlgCloseMinus(ctx){
+    // TODO: Реализовать логику «Закрыть тикет (-)» (негативное закрытие тикета)
+    console.log('[dialog action] CloseMinus', ctx);
+  }
+  function handleDlgReqPlus(ctx){
+    // TODO: Реализовать логику «Запрос закрытия (+)» (инициировать позитивный запрос)
+    console.log('[dialog action] ReqClosePlus', ctx);
+  }
+  function handleDlgReqMinus(ctx){
+    // TODO: Реализовать логику «Запрос закрытия (-)» (инициировать негативный запрос)
+    console.log('[dialog action] ReqCloseMinus', ctx);
+  }
+  function handleDlgToOperator(ctx){
+    // TODO: Реализовать перевод диалога на живого оператора
+    console.log('[dialog action] ToOperator', ctx);
+  }
+  function handleDlgUnsubscribe(ctx){
+    // TODO: Реализовать отмену подписки пользователя на рассылку/уведомления
+    console.log('[dialog action] Unsubscribe', ctx);
+  }
+
+  const ACTION_HANDLERS = {
+    [ACTION_IDS.CLOSE_PLUS]: handleDlgClosePlus,
+    [ACTION_IDS.CLOSE_MINUS]: handleDlgCloseMinus,
+    [ACTION_IDS.REQ_PLUS]: handleDlgReqPlus,
+    [ACTION_IDS.REQ_MINUS]: handleDlgReqMinus,
+    [ACTION_IDS.TO_OPERATOR]: handleDlgToOperator,
+    [ACTION_IDS.UNSUBSCRIBE]: handleDlgUnsubscribe,
+  };
+
+  // === Ленивая инициализация контейнера меню диалога ===
+  function ensureDialogMenuContainer(){
+    if (dom.dialogMenu) return dom.dialogMenu;
     const el = document.createElement('div');
     el.className = 'popup-menu';
     el.id = 'dialogMenu';
     el.setAttribute('role', 'menu');
     el.setAttribute('aria-hidden', 'true');
-    el.innerHTML = MENU_ITEMS.map((item) => `
-      <button class="popup-menu__item" role="menuitem" id="${item.id}">
-        <img class="popup-menu__icon" src="${item.icon}" alt="" aria-hidden="true" />
-        <span class="popup-menu__label">${item.label}</span>
-      </button>
-    `).join('');
     document.body.appendChild(el);
+    // Делегирование кликов по пунктам меню
+    el.addEventListener('click', (ev) => {
+      if (el.getAttribute('aria-hidden') === 'true') return;
+      const itemBtn = ev.target.closest('.popup-menu__item');
+      if (!itemBtn) return;
+      ev.stopPropagation();
+      const dialogId = getCurrentDialogIdByAnchor();
+      const actionId = itemBtn.id;
+      const handler = ACTION_HANDLERS[actionId];
+      const context = { dialogId, actionId, source: 'dialogMenu' };
+      if (typeof handler === 'function') {
+        try { handler(context); } catch(err){ console.error('[dialog action error]', actionId, err); }
+      } else {
+        console.warn('[dialog action] Нет обработчика для', actionId, context);
+      }
+      setDialogMenuOpen(false);
+      if (dialogMenuAnchorBtn) dialogMenuAnchorBtn.focus();
+    });
+    dom.dialogMenu = el;
     return el;
+  }
+
+  // Пересобирает пункты меню для конкретного диалога (фильтрация на этапе компоновки)
+  /**
+   * Пересобирает HTML контекстного меню для заданного dialogId.
+   * Фильтрует пункт перевода на оператора, если origin уже operator.
+   * @param {number|null} dialogId
+   */
+  function renderDialogMenuForDialog(dialogId){
+    const menuEl = ensureDialogMenuContainer();
+  const data = dialogId != null ? getDialogById(dialogId) : null;
+    const filtered = MENU_ITEMS.filter(item => {
+      if (item.id === ACTION_IDS.TO_OPERATOR && data && data.origin === 'operator') return false;
+      return true;
+    });
+    menuEl.innerHTML = filtered.map(item => {
+  const isTransfer = item.id === ACTION_IDS.TO_OPERATOR;
+      const iconHtml = isTransfer
+        ? `<svg class="popup-menu__icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>`
+        : `<img class="popup-menu__icon" src="${item.icon}" alt="" aria-hidden="true" />`;
+      return `<button class="popup-menu__item" role="menuitem" id="${item.id}">${iconHtml}<span class="popup-menu__label">${item.label}</span></button>`;
+    }).join('');
   }
 
   function getCurrentDialogIdByAnchor(){
@@ -294,19 +442,31 @@
     const li = dialogMenuAnchorBtn.closest('li.dialog');
     return li ? Number(li.dataset.id) : null;
   }
-
+  /**
+   * Открывает/закрывает контекстное меню диалога. При открытии пересобирает содержимое.
+   * @param {boolean} isOpen
+   */
   function setDialogMenuOpen(isOpen){
-    if (!dom.dialogMenu) return;
-    setAriaHidden(dom.dialogMenu, !isOpen);
-    if (isOpen) positionDialogMenu();
+    if (isOpen){
+      const dialogId = getCurrentDialogIdByAnchor() ?? state.selectedId ?? null;
+      renderDialogMenuForDialog(dialogId);
+      setAriaHidden(dom.dialogMenu, false);
+      positionDialogMenu();
+    } else if (dom.dialogMenu) {
+      setAriaHidden(dom.dialogMenu, true);
+    }
   }
 
+  /**
+   * Позиционирует контекстное меню относительно кнопки-анкера.
+   */
   function positionDialogMenu(){
     if (!dialogMenuAnchorBtn || !dom.dialogMenu) return;
     const btnRect = dialogMenuAnchorBtn.getBoundingClientRect();
     dom.dialogMenu.style.position = 'fixed';
     const top = Math.round(btnRect.bottom + 6);
-    let left = Math.round(btnRect.right - dom.dialogMenu.offsetWidth);
+    const menuWidth = dom.dialogMenu.offsetWidth || 0;
+    let left = Math.round(btnRect.right - menuWidth);
     if (left < 8) left = 8; // небольшой отступ от края
     dom.dialogMenu.style.top = top + 'px';
     dom.dialogMenu.style.left = left + 'px';
@@ -319,6 +479,10 @@
   function init() {
     // Рендер начальной страницы
     renderList();
+    // Состояние правой панели по умолчанию
+    if (dom.chatPanel) dom.chatPanel.hidden = true;
+
+  // Контекстное меню диалога создаётся лениво при первом открытии (ensureDialogMenuContainer)
 
     // Список: делегирование
     dom.list.addEventListener('click', (event) => {
@@ -395,6 +559,18 @@
       const isOpen = dom.projectMenu.getAttribute('aria-hidden') === 'false';
       setProjectMenuOpen(!isOpen);
     });
+    // Закрывать меню проекта после выбора пункта
+    if (dom.projectMenu) {
+      dom.projectMenu.addEventListener('click', (e) => {
+        const item = e.target.closest('.popup-menu__item');
+        if (!item) return;
+        // Логика обработки действия пункта (пока только лог)
+        console.log('Project menu action:', item.id || '(no-id)');
+        setProjectMenuOpen(false);
+        // Убираем фокус с пункта, чтобы не оставалось визуального состояния
+        if (document.activeElement === item) item.blur();
+      });
+    }
     window.addEventListener('resize', () => {
       if (dom.projectMenu.getAttribute('aria-hidden') === 'false') positionProjectMenu();
       if (dom.dialogMenu && dom.dialogMenu.getAttribute('aria-hidden') === 'false') positionDialogMenu();
@@ -404,16 +580,11 @@
       if (dom.dialogMenu && dom.dialogMenu.getAttribute('aria-hidden') === 'false') positionDialogMenu();
     }, true);
 
-    // ====== Контекстное меню диалога (одно на все элементы) ======
-    dom.dialogMenu = createDialogMenu();
+    // (listener кликов меню добавляется при создании контейнера)
 
-    // Обработчики пунктов меню
-    dom.dialogMenu.addEventListener('click', (ev) => {
-      const item = ev.target.closest('.popup-menu__item');
-      if (!item) return;
-      setDialogMenuOpen(false);
-      console.log('Dialog menu action:', item.id, 'for dialogId=', getCurrentDialogIdByAnchor());
-    });
+    // Экспорт обработчиков наружу (опционально для будущих модулей/тестов)
+    window.app = window.app || {};
+    window.app.dialogActions = ACTION_HANDLERS;
   }
 
   // === helper: безопасно обновляет таймер внутри li ===
@@ -457,6 +628,16 @@
     timer.dataset.visible = 'false';
     timer.setAttribute('aria-hidden', 'true');
     return true;
+  }
+
+  /**
+   * Возвращает объект диалога по id или null.
+   * @param {number|null} id
+   * @returns {{id:number,name:string,time:string,platform:string,origin:string}|null}
+   */
+  function getDialogById(id){
+    if (id == null) return null;
+    return MOCK_DIALOGS.find(d => d.id === id) || null;
   }
 
   // Экспорт API для использования из консоли/других модулей
