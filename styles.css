@@ -15,6 +15,13 @@
   --text: #e6e9ee;
   --muted: #9aa5b1;
   --white: #ffffff;
+  /* Дополнительный вторичный текст (подписи под основным) */
+  --text-muted-alt: #97a3b4;
+
+  /* ====== Inline image (attachments) ====== */
+  --inline-image-max-width: 420px;   /* было 220px */
+  --inline-image-max-height: 300px;  /* было 180px */
+  --inline-image-side-gap: 1px;      /* уменьшили горизонтальные отступы (ранее визуально ~14px через padding контейнера) */
 
   /* ====== БЕЙДЖИ / СТАТУСЫ ====== */
   --badge__bot-bg: #33cc331a;
@@ -45,6 +52,12 @@
   --timer-bg: rgba(255, 93, 93, 0.1);         /* фон пилюли */
   --timer-text: #ff5d5d;                      /* текст и иконка */
   --timer-border: rgba(255,155,80,0.12);
+  /* Баннер ИИ (кнопка в футере чата) */
+  --ai-banner-bg: #33cc331a;
+  --ai-banner-border: #33cc3333;
+  --ai-banner-hover-bg: #33cc3333;
+  --ai-banner-title: #33cc33;
+  --ai-banner-subtitle: var(--text-muted-alt);
 
   /* ====== ДОПОЛНИТЕЛЬНЫЕ ПОВЕРХНОСТИ/СОСТОЯНИЯ ====== */
   --surface-elevated: #18171d;   /* всплывающие меню, дропдауны */
@@ -67,6 +80,18 @@
   --dialog-hover-bg: #303036;            /* фон при hover (когда не выбран) */
   --dialog-selected-bg: #8758f31a;       /* фон выбранного */
   --dialog-selected-border: #8758f34d;   /* граница выбранного */
+  
+  /* ====== COMPOSER (ввод оператора) ====== */
+  --input-bg: #2B2B31;
+  --input-border: #2f3036;
+  --input-placeholder: #6c7480;
+  --input-focus-border: var(--accent);
+  --send-btn-bg: var(--accent);
+  --send-btn-color: var(--white);
+  /* ====== MSG FILE ATTACHMENTS (tokens) ====== */
+  --msg-file-bg: #1c1c21;         /* базовый фон файла (бот/клиент) */
+  --msg-file-icon-bg: #1c1c21;    /* фон квадрата иконки */
+  --msg-file-border: #2b2b31;     /* стандартная граница файла */
 }
 
 
@@ -748,6 +773,7 @@ button { font: inherit; color: inherit; }
   gap: 16px;
   padding: 16px;
   border-bottom: 1px solid var(--border);
+  background-color: var(--panel);
 }
 .chat__header-left{ display:flex; flex-direction:column; gap:6px; }
 .chat__user{ margin:0; font-size:16px; font-weight:700; }
@@ -767,10 +793,250 @@ button { font: inherit; color: inherit; }
 .chat__footer{
   border-top: 1px solid var(--border);
   padding: 16px;
-  min-height: 80px; /* резерв под будущий инпут / кнопки */
+  min-height: 100px; /* резерв под будущий инпут / кнопки */
   display:flex;
   align-items:center;
   justify-content:center;
   color: var(--muted);
   font-size: 12px;
+  background-color: var(--panel);
+}
+
+/* ====== Баннер ИИ (кнопка) ====== */
+.chat__ai-banner {
+  width: 100%;
+  background: var(--ai-banner-bg);
+  border: 1px solid var(--ai-banner-border);
+  border-radius: 12px;
+  padding: 18px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+}
+.chat__ai-banner:hover,
+.chat__ai-banner:focus-visible {
+  background: var(--ai-banner-hover-bg);
+  border-color: var(--ai-banner-hover-bg);
+}
+.chat__ai-banner-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  color: var(--ai-banner-title);
+}
+.chat__ai-banner-subtitle {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: center;
+  color: var(--ai-banner-subtitle);
+}
+.chat__ai-banner:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ====== Плейсхолдер оператора (пока заглушка) ====== */
+.chat__operator-placeholder {
+  width: 100%;
+  background: var(--panel-2);
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  user-select: none;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+.chat__operator-placeholder-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--white);
+}
+.chat__operator-placeholder-desc { margin: 0; line-height: 1.4; }
+
+/* ====== COMPOSER (ввод текста оператором) ====== */
+.chat__composer-wrapper { width:100%; display:flex; flex-direction:column; gap:8px; }
+/* Верхняя зона: поле + иконки + кнопка отправки */
+.chat__composer { background: var(--input-bg); border:1px solid var(--input-border); border-radius:12px; padding:12px 14px; display:flex; flex-direction:row; gap:14px; align-items:flex-end; position:relative; }
+.chat__composer:focus-within { border-color: var(--input-focus-border); }
+.chat__composer-main { flex:1 1 auto; display:flex; flex-direction:row; align-items:flex-start; gap:10px; }
+.chat__input { flex:1 1 auto; background:transparent; border:none; color:var(--text); font:14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif; resize:none; min-height:60px; max-height:180px; outline:none; }
+.chat__input::placeholder { color: var(--input-placeholder); }
+.chat__composer-actions { display:flex; align-items:center; gap:6px; }
+.chat__icon-btn { width:36px; height:36px; display:inline-grid; place-items:center; border:1px solid transparent; background:transparent; border-radius:10px; color:var(--white); cursor:pointer; transition: background-color .15s ease, border-color .15s ease, color .15s ease; }
+.chat__icon-btn:hover { background: var(--hover-subtle); }
+.chat__icon-btn:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.chat__icon-btn img {
+  width: 18px;
+  height: 18px;
+}
+.chat__input::placeholder { color: #97a3b4; }
+.chat__shortcuts { font-size:12px; color:var(--muted); display:flex; flex-wrap:wrap; gap:12px; }
+.chat__shortcut-key { display:inline-flex; align-items:center; gap:4px; }
+.chat__shortcut-key kbd { background:var(--panel-2); border:1px solid var(--border); padding:2px 6px; border-radius:6px; font-size:11px; font-weight:500; color:var(--text); }
+.chat__send-btn { background: var(--send-btn-bg); color: var(--send-btn-color); border:1px solid var(--send-btn-bg); border-radius:10px; height:35px; padding:0 18px; font-size:14px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition: background-color .15s ease, box-shadow .15s ease; }
+.chat__send-btn:hover { filter: brightness(1.05); }
+.chat__send-btn:active { filter: brightness(.92); }
+.chat__send-btn:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.chat__send-btn-icon { width:18px; height:18px; display:block; }
+.chat__send-btn:disabled,
+.chat__send-btn[disabled],
+.chat__send-btn.is-disabled {
+  background: #23232b;
+  color: #6c7480;
+  border-color: #23232b;
+  opacity: 0.7;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+/* Нижняя строка подсказок */
+.chat__composer-bottom { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+.chat__composer-hint { font-size:12px; color:var(--muted); display:flex; gap:12px; flex-wrap:wrap; }
+.chat__composer-hint { font-size:12px; color:#97a3b4; display:flex; gap:12px; flex-wrap:wrap; }
+
+/* ====== Pending attachments (локальные, до отправки) ====== */
+.chat__pending { display:flex; flex-wrap:wrap; gap:10px; margin-top:4px; }
+.pending-attach { position:relative; background:var(--panel-2); border:1px solid var(--border); border-radius:10px; padding:8px 10px; display:flex; flex-direction:row; align-items:stretch; gap:10px; min-width:180px; max-width:240px; }
+.pending-attach--img { padding:6px; }
+.pending-attach__thumb { width:72px; height:54px; border-radius:8px; overflow:hidden; flex-shrink:0; background:#1f1f24; display:block; }
+.pending-attach__thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+.pending-attach__icon { width:42px; height:42px; display:grid; place-items:center; background:#242429; border-radius:8px; color:var(--white); flex-shrink:0; }
+.pending-attach__info { display:flex; flex-direction:column; gap:4px; min-width:0; flex:1 1 auto; }
+.pending-attach__name { font-size:12px; font-weight:500; color:var(--white); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.pending-attach__meta { font-size:11px; color:var(--text-muted-alt); }
+.pending-attach__progress { position:relative; width:100%; height:4px; background:#26262d; border-radius:3px; overflow:hidden; margin-top:2px; }
+.pending-attach__progress-bar { height:100%; background:var(--accent); width:0; transition:width .2s ease; }
+.pending-attach__remove { position:absolute; top:4px; right:4px; width:20px; height:20px; display:grid; place-items:center; background:transparent; border:1px solid transparent; color:var(--muted); border-radius:6px; cursor:pointer; padding:0; }
+.pending-attach__remove:hover { background:var(--hover-subtle); color:var(--white); }
+.pending-attach__remove:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.pending-attach__status { position:absolute; bottom:4px; right:6px; font-size:11px; font-weight:500; }
+.pending-attach__status--error { color:var(--danger); }
+.pending-attach__status--spin { width:14px; height:14px; border:2px solid #35353b; border-top-color:var(--accent); border-radius:50%; animation:spin .9s linear infinite; position:absolute; bottom:4px; right:6px; }
+.pending-attach--error { border-color:var(--danger); }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+/* ====== СООБЩЕНИЯ В ЧАТЕ ======
+   Семантика:
+     .msg -- общий контейнер
+       модификаторы: --client (сообщение отправителя), --agent, --bot, --operator
+     .msg__bubble -- визуальный контейнер контента
+     .msg__author -- строка с иконкой и надписью (только для bot/operator)
+     .msg__text -- параграф текста
+     .msg__meta -- время
+     .msg__attachments -- блок вложений
+*/
+.msg { display:flex; flex-direction:column; gap:6px; max-width:70%; }
+/* Теперь сообщения клиента (client) слева, а бота/оператора справа */
+.msg--client { align-self:flex-start; }
+.msg--agent { align-self:flex-end; }
+
+.msg__author { display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600; }
+.msg--bot .msg__author { color: var(--badge__bot); }
+.msg--operator .msg__author { color: var(--white); }
+.msg__author-icon { width:14px; height:14px; display:inline-block; }
+.msg__author-label { line-height:1; }
+
+.msg__bubble { background: #2b2b31; border:1px solid #2f3036; border-radius:14px; padding:14px 16px; display:flex; flex-direction:column; gap:8px; position:relative; }
+.msg--client .msg__bubble { background:#3a3a42; border-color:#44444c; }
+.msg--bot .msg__bubble { background:#223822; border-color: var(--badge__bot-border); }
+.msg--operator .msg__bubble { background:#2b2b31; }
+
+/* === Overrides: Message redesign (client + agent unified container) === */
+/* Клиент: фон у пузыря #242429; Агент (бот и оператор): фон у всего блока #1c1c21 */
+.msg--client .msg__bubble { background:#242429; border-color:#35353b; }
+
+.msg--agent { background:#1c1c21; border:1px solid #26262b; border-radius:14px; padding:14px 16px; gap:8px; }
+/* Вложенный пузырь внутри агентского сообщения больше не нужен визуально */
+.msg--agent .msg__bubble { background:transparent !important; border:0 !important; padding:0; border-radius:0; }
+.msg--agent .msg__author { margin:0; }
+
+/* Слегка смягчим разделитель файлов внутри агентского блока (на тёмном фоне) */
+/* Удалены старые agent overrides для файлов; теперь управляем через токены */
+
+/* Конец overrides */
+
+/* Дополнительный override: фон сообщений ОПЕРАТОРА = акцент приложения */
+.msg--operator { background: var(--accent); border-color: var(--accent); }
+.msg--operator .msg__author { color: var(--white); }
+/* Сделаем подписи (meta) чуть более светлыми внутри яркого фона для контраста */
+.msg--operator .msg__meta { color: rgba(255,255,255,.75); }
+
+/* === Layout fix: ограничиваем скролл только телом чата === */
+/* Проблема: при первой отправке сообщение увеличивало высоту панели и сам #chatPanel становился скролл-контейнером. */
+.chat { overflow:hidden; display:flex; flex-direction:column; height:100%; }
+/* flex-basis:0 предотвращает «рост» по контенту и фиксирует футер на месте с самого начала */
+.chat__body { flex:1 1 0%; overflow-y:auto; min-height:0; }
+
+.msg__text { white-space:pre-wrap; word-wrap:break-word; overflow-wrap:break-word; font-size:14px; line-height:1.5; color: var(--white); }
+.msg__meta { font-size:12px; color: var(--text-muted-alt); }
+.msg__meta time { font:inherit; color:inherit; }
+
+/* Вложения */
+.msg__attachments { display:flex; flex-direction:column; gap:8px; }
+/* (legacy initial styles for .msg-file удалены) */
+.msg-file__body { display:flex; flex-direction:column; min-width:0; }
+.msg-file__name { font-size:13px; font-weight:500; color:var(--white); max-width:360px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.msg-file__size { font-size:11px; color: var(--text-muted-alt); }
+/* === NEW: inline image attachment (variant 1) === */
+/* Увеличены размеры + минимизированы горизонтальные внешние отступы */
+.msg-image { margin:4px var(--inline-image-side-gap) 0 var(--inline-image-side-gap); max-width:var(--inline-image-max-width); max-height:var(--inline-image-max-height); border-radius:14px; overflow:hidden; display:inline-block; position:relative; line-height:0; }
+.msg-image img { display:block; width:100%; height:100%; object-fit:cover; transition:transform .15s ease; }
+.msg-image:hover img { transform:scale(1.05); }
+.msg-image { position:relative; }
+.msg-image__download { position:absolute; top:6px; right:6px; width:28px; height:28px; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.55); backdrop-filter:blur(4px); border-radius:6px; opacity:0; transform:translateY(-4px); transition:opacity .15s ease, transform .15s ease; text-decoration:none; }
+.msg-image__download img { display:none; }
+.msg-image__download-icon { width:16px; height:16px; stroke:#ffffff; color:#ffffff; display:block; pointer-events:none; }
+/* На случай если браузер игнорирует filter (например, already white) форсируем stroke/fill через mask подход не трогаем: svg уже белый. */
+.msg-image:hover .msg-image__download, .msg-image:focus-within .msg-image__download { opacity:1; transform:translateY(0); }
+.msg-image__download:focus { outline:2px solid var(--focus-color, #4d90fe); outline-offset:2px; }
+.msg-image--clickable{ cursor:pointer; }
+.msg-image--clickable:hover::after{ content:""; position:absolute; inset:0; background:rgba(0,0,0,.15); }
+
+/* === UPDATED: file attachment block (variant 2) === */
+/* === ЕДИНЫЙ БАЗОВЫЙ СТИЛЬ ДЛЯ ФАЙЛОВЫХ ВЛОЖЕНИЙ === */
+.msg-file { display:flex; align-items:center; gap:10px; background:var(--msg-file-bg); border:1px solid var(--msg-file-border); border-radius:12px; padding:10px 12px; }
+.msg-file__icon { width:32px; height:32px; display:grid; place-items:center; background:var(--msg-file-icon-bg); border-radius:8px; color:var(--white); flex-shrink:0; }
+.msg-file__icon img { width:16px; height:16px; display:block; object-fit:contain; }
+.msg-file__download { margin-left:auto; display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:8px; background:transparent; border:none; cursor:pointer; padding:0; transition: background-color .15s ease, color .15s ease; }
+.msg-file__download:hover, .msg-file__download:focus-visible { background: var(--accent); color: var(--white); }
+.msg-file__download img { width:16px; height:16px; display:block; }
+.msg-file__download:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.msg-file__name { color: var(--white); }
+.msg-file__size { color: var(--text-muted-alt); }
+/* === Контекст оператора: переопределяем токены на акцент === */
+/* Оператор: полупрозрачная подложка и стандартная граница */
+.msg--operator { --msg-file-bg: #24242933; --msg-file-icon-bg: #24242933; --msg-file-border: #2b2b31; }
+/* Если потребуется другой оттенок для иконки, можно ввести --msg-file-icon-bg-alt и использовать внутри .msg--operator .msg-file__icon */
+.image-modal__overlay{ position:fixed; inset:0; background:rgba(0,0,0,.54); backdrop-filter:blur(2px); z-index:1000; display:flex; align-items:center; justify-content:center; padding:40px 32px; animation:fadeIn .18s ease; }
+/* Переменные для масштабирования предпросмотра */
+:root { --image-preview-max-width: 960px; --image-preview-max-height:84vh; }
+.image-modal{ width:100%; max-width:min(var(--image-preview-max-width),92vw); background:var(--panel); border:1px solid var(--border); border-radius:16px; box-shadow:0 10px 32px -4px rgba(0,0,0,.55),0 4px 12px -2px rgba(0,0,0,.4); display:flex; flex-direction:column; position:relative; }
+.image-modal__close{ position:absolute; top:10px; right:10px; width:28px; height:28px; display:inline-grid; place-items:center; border-radius:8px; background:rgba(255,255,255,.06); color:var(--white); border:1px solid rgba(255,255,255,.1); cursor:pointer; transition:background .15s ease,border-color .15s ease; }
+.image-modal__close:hover,.image-modal__close:focus-visible{ background:rgba(255,255,255,.12); border-color:rgba(255,255,255,.18); }
+.image-modal__img-wrap{ padding:34px 34px 12px 34px; display:flex; justify-content:center; }
+.image-modal__img{ max-width:100%; max-height:var(--image-preview-max-height); border-radius:12px; display:block; object-fit:contain; width:auto; height:auto; }
+.image-modal__bottom{ display:flex; align-items:center; justify-content:space-between; padding:12px 28px 22px 36px; gap:24px; }
+.image-modal__filename{ font-size:14px; color:#97a3b4; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.image-modal__download{ display:inline-flex; align-items:center; gap:6px; background:transparent; border:1px solid var(--accent); color:var(--accent); font-size:14px; font-weight:600; padding:8px 14px; border-radius:10px; cursor:pointer; transition:background-color .15s ease,color .15s ease; }
+.image-modal__download:hover,.image-modal__download:focus-visible{ background:var(--accent); color:var(--white); }
+.image-modal__download-icon{ width:18px; height:18px; display:block; }
+@keyframes fadeIn{ from{ opacity:0; transform:translateY(4px);} to{ opacity:1; transform:translateY(0);} }
+
+@media (max-width:960px){
+  :root { --image-preview-max-width: 100vw; }
+}
+@media (max-width:640px){
+  .image-modal__overlay{ padding:22px 14px; }
+  .image-modal__img-wrap{ padding:24px 24px 8px 24px; }
+  .image-modal__bottom{ padding:10px 20px 18px 24px; }
+  .image-modal__img{ max-height:78vh; }
 }
