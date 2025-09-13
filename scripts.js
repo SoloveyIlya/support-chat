@@ -89,13 +89,27 @@
        dialogId: number
        author: 'client'|'bot'|'operator'|'system'
        text: string
-       attachments?: Array<{ id:string|number, name:string, size?:string, contentType?:string, downloadUrl?:string }>
+       attachments?: Array<{
+         id:string|number,
+         name:string,
+         size?:string,              // строка вида '256 KB' — парсится best-effort
+         contentType?:string,       // MIME (используется для классификации image/*)
+         downloadUrl?:string,       // ссылка скачивания (может совпадать с url)
+         url?:string,               // исходный URL (например, CDN для картинки)
+         displayHint?:'inline-image'|'file' // ЯВНАЯ подсказка от бэка как отобразить
+       }>
        createdAt: string|Date
        status?: 'pending'|'sent'|'delivered'|'read'|'failed'
        seq?: number (монотонный порядковый номер с сервера — зарезервировано)
      Хранение:
        store[dialogId] = { byId:{}, order:[ids], lowestSeq, highestSeq }
      Цели: быстрые обновления, дедупликация, будущая пагинация (append/prepend).
+
+     displayHint — расширяемый контракт с бекендом. Если задано:
+       'inline-image' — принудительно отображаем как встроенную картинку
+       'file'         — принудительно карточка файла
+     Если отсутствует, применяется эвристика: isInlineImage(att) => inline-image, иначе file.
+     Это позволяет бэку переопределять автоматическую логику (например, запретить inline для очень длинных панорам или SVG).
   */
   const MessageStore = (() => {
     const dialogs = Object.create(null); // dialogId -> bucket
@@ -169,6 +183,25 @@
       }
     }
 
+    // Точечное обновление полей вложения внутри сообщения
+    function updateAttachment(dialogId, msgId, attId, patch){
+      const bucket = ensure(dialogId);
+      const msg = bucket.byId[msgId];
+      if(!msg || !Array.isArray(msg.attachments)) return false;
+      let changed = false;
+      msg.attachments = msg.attachments.map(att => {
+        if(String(att.id) === String(attId)){
+          changed = true;
+          return { ...att, ...patch };
+        }
+        return att;
+      });
+      if(changed){
+        notify({ type:'attachment-update', dialogId, msgId, attId, patch });
+      }
+      return changed;
+    }
+
     function getList(dialogId){
       const bucket = ensure(dialogId);
       return bucket.order.map(i => bucket.byId[i]).filter(Boolean);
@@ -176,7 +209,7 @@
 
     function subscribe(fn){ listeners.add(fn); return ()=>listeners.delete(fn); }
 
-    return { ingestBatch, addLocal, updateStatus, getList, subscribe };
+    return { ingestBatch, addLocal, updateStatus, getList, subscribe, updateAttachment };
   })();
 
   function escapeHtml(str){
@@ -257,16 +290,29 @@
   }
 
   function createInlineImageAttachment(att){
-    const safeUrl = escapeHtml(att.downloadUrl || att.url || '');
+    const rawUrl = att.downloadUrl || att.url || '';
+    const safeUrl = escapeHtml(rawUrl);
     const alt = escapeHtml(att.name || 'image');
-    return `<figure class="msg-image" data-file-id="${att.id}"><img src="${safeUrl}" alt="${alt}" loading="lazy" decoding="async" /></figure>`;
+    const nameEsc = escapeHtml(att.name || 'image');
+    return `<figure class="msg-image msg-image--clickable" data-attachment-id="${att.id}" data-variant="inline-image" data-url="${safeUrl}" data-name="${nameEsc}">
+      <img src="${safeUrl}" alt="${alt}" loading="lazy" decoding="async" />
+      <a class="msg-image__download" href="${safeUrl}" download="${nameEsc}" aria-label="Скачать изображение" title="Скачать изображение">
+        <svg class="msg-image__download-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" x2="12" y1="15" y2="3"/>
+        </svg>
+      </a>
+    </figure>`;
   }
 
   function createFileAttachment(att){
     const nameEsc = escapeHtml(att.name || 'Файл');
     const sizeEsc = escapeHtml(att.size || '');
-    const downloadUrl = escapeHtml(att.downloadUrl || att.url || '#');
-    return `<div class="msg-file" data-file-id="${att.id}">
+    const rawUrl = att.downloadUrl || att.url || '#';
+    const downloadUrl = escapeHtml(rawUrl);
+    const safeUrlAttr = escapeHtml(rawUrl === '#' ? '' : rawUrl);
+    return `<div class="msg-file" data-attachment-id="${att.id}" data-variant="file" data-url="${safeUrlAttr}">
       <div class="msg-file__icon" aria-hidden="true"><img src="images/image.svg" alt="" /></div>
       <div class="msg-file__body">
         <div class="msg-file__name" title="${nameEsc}">${nameEsc}</div>
@@ -276,6 +322,25 @@
         <img src="images/download.svg" alt="" />
       </a>
     </div>`;
+  }
+
+  /* ====== Attachment Variant Resolver ======
+     Приоритет источника отображения:
+       1. att.displayHint (явно задано бекендом: 'inline-image' | 'file')
+       2. Автоклассификация (isInlineImage → inline-image, иначе file)
+     Возвращает строковое значение варианта для унифицированной обработки.
+  */
+  function classifyAttachmentVariant(att){
+    if(!att) return 'file';
+    if(att.displayHint === 'inline-image') return 'inline-image';
+    if(att.displayHint === 'file') return 'file';
+    return isInlineImage(att) ? 'inline-image' : 'file';
+  }
+
+  function buildAttachmentHtml(att){
+    const variant = classifyAttachmentVariant(att);
+    if(variant === 'inline-image') return createInlineImageAttachment(att);
+    return createFileAttachment(att);
   }
   function createMessageHtml(msg){
     const textHtml = `<div class="msg__text">${escapeHtml(msg.text)}</div>`;
@@ -295,8 +360,7 @@
     if(Array.isArray(msg.attachments) && msg.attachments.length){
       const parts = [];
       for(const att of msg.attachments){
-        if(isInlineImage(att)) parts.push(createInlineImageAttachment(att));
-        else parts.push(createFileAttachment(att));
+        parts.push(buildAttachmentHtml(att));
       }
       attachmentsHtml = `<div class="msg__attachments">${parts.join('')}</div>`;
     }
@@ -316,6 +380,8 @@
     wrap.innerHTML = createMessageHtml(msg);
     dom.chatBody.appendChild(wrap.firstElementChild);
     dom.chatBody.scrollTop = dom.chatBody.scrollHeight;
+    const el = dom.chatBody.querySelector(`[data-msg-id="${msg.id}"]`);
+    if(el) processMessageAttachments(dialogId, msg, el);
   }
 
   // Backward совместимый интерфейс для текущего composer
@@ -338,6 +404,72 @@
     }
     dom.chatBody.appendChild(frag);
     dom.chatBody.scrollTop = dom.chatBody.scrollHeight;
+    // Post-process вложения (апгрейд/фоллбек)
+    for(const m of list){
+      const node = dom.chatBody.querySelector(`[data-msg-id="${m.id}"]`);
+      if(node) processMessageAttachments(dialogId, m, node);
+    }
+  }
+
+  /* ====== Runtime Attachment Capability Check ======
+     Цель: гарантировать правило «или inline изображение, или карточка файла». Если:
+       - Мы попытались отобразить inline и загрузка изображения упала → фоллбек в карточку файла.
+       - У нас карточка файла, но URL потенциально указывает на изображение (по расширению/MIME) → пробуем загрузить и апгрейдим до inline.
+     Это делает поведение более надёжным против неточных contentType.
+  */
+  function looksLikeImageUrl(url){
+    if(!url) return false;
+    return /\.(png|jpe?g|gif|webp|avif)$/i.test(url.split('?')[0]);
+  }
+
+  function processMessageAttachments(dialogId, msg, msgEl){
+    if(!msg || !Array.isArray(msg.attachments) || !msg.attachments.length) return;
+    const attNodes = msgEl.querySelectorAll('[data-attachment-id]');
+    if(!attNodes.length) return;
+    for(const att of msg.attachments){
+      const node = msgEl.querySelector(`[data-attachment-id="${att.id}"]`);
+      if(!node) continue;
+      const currentVariant = node.getAttribute('data-variant');
+      const url = att.url || att.downloadUrl || node.getAttribute('data-url') || '';
+      // === Case 1: inline → проверяем onerror (установим обработчик если не установлен)
+      if(currentVariant === 'inline-image'){
+        const img = node.querySelector('img');
+        if(img && !img.dataset._handler){
+          img.dataset._handler = '1';
+          img.addEventListener('error', ()=>{
+            // Фоллбек: заменить на file-attachment
+            const fallbackHtml = createFileAttachment({ ...att, displayHint:'file' });
+            const wrap = document.createElement('div');
+            wrap.innerHTML = fallbackHtml;
+            node.replaceWith(wrap.firstElementChild);
+            MessageStore.updateAttachment(dialogId, msg.id, att.id, { displayHint:'file' });
+          }, { once:true });
+        }
+        continue; // inline проверяем только на ошибку
+      }
+      // === Case 2: file → можем попытаться апгрейдить если это потенциально изображение
+      if(currentVariant === 'file'){
+        // Сценарий: displayHint='file' принудительно НЕ апгрейдим
+        if(att.displayHint === 'file') continue;
+        if(!(att.displayHint === 'inline-image') && !(att.contentType && att.contentType.startsWith('image/')) && !looksLikeImageUrl(url)) continue;
+        if(!url || url === '#') continue;
+        try {
+            const testImg = new Image();
+            testImg.loading = 'eager';
+            testImg.decoding = 'async';
+            testImg.addEventListener('load', ()=>{
+              // Апгрейд до inline-image
+              const html = createInlineImageAttachment({ ...att, displayHint:'inline-image' });
+              const wrap = document.createElement('div');
+              wrap.innerHTML = html;
+              node.replaceWith(wrap.firstElementChild);
+              MessageStore.updateAttachment(dialogId, msg.id, att.id, { displayHint:'inline-image' });
+            }, { once:true });
+            testImg.addEventListener('error', ()=>{ /* остаёмся в режиме file */ }, { once:true });
+            testImg.src = url;
+        } catch(e){ /* silent */ }
+      }
+    }
   }
 
   function seedDemoMessages(){
@@ -373,6 +505,8 @@
     ];
 
     const now = Date.now();
+    let inlineImageCount = 0;
+    let fileCount = 0;
     for(const dlg of MOCK_DIALOGS){
       const seed = dlg.id * 13;
       const pick = (arr, sOff=0) => arr[(seed + sOff) % arr.length];
@@ -380,17 +514,37 @@
       const agentAuthor = dlg.origin === 'bot' ? 'bot' : 'operator';
       const batch = [
         { id:`m${dlg.id}a`, dialogId:dlg.id, author:'client', text:pick(intro), createdAt:t(120+dlg.id), status:'sent' },
-        { id:`m${dlg.id}b`, dialogId:dlg.id, author:agentAuthor, text:pick(agentAuthor==='bot'?botReplies:opReplies,1), createdAt:t(118+dlg.id), status:'sent' },
+        // Сообщение агента с демонстрацией ДВУХ типов вложений (фиксировано для первых нескольких диалогов)
+        { id:`m${dlg.id}b`, dialogId:dlg.id, author:agentAuthor, text:pick(agentAuthor==='bot'?botReplies:opReplies,1), createdAt:t(118+dlg.id), status:'sent', attachments: (dlg.id <= 3) ? [
+          { id:`f${dlg.id}img1`, name:`preview-${dlg.id}.png`, size:'120 KB', contentType:'image/png', url:'https://picsum.photos/seed/inline'+dlg.id+'/300/180', displayHint:'inline-image' },
+          { id:`f${dlg.id}file1`, name:`report-${dlg.id}.pdf`, size:'256 KB', contentType:'application/pdf', displayHint:'file' }
+        ] : undefined },
         { id:`m${dlg.id}c`, dialogId:dlg.id, author:'client', text:pick(follow,2), createdAt:t(90+dlg.id), status:'sent' },
         { id:`m${dlg.id}d`, dialogId:dlg.id, author:agentAuthor, text:'Передаю дальше, уточняю детали…', createdAt:t(70+dlg.id), status:'sent' },
         { id:`m${dlg.id}e`, dialogId:dlg.id, author:'client', text:pick(thanks,3), createdAt:t(10+dlg.id), status:'sent' }
       ];
-      // Пример вложения для каждого третьего диалога
+      // Дополнительное сообщение только с inline-image для каждого пятого диалога
+      if(dlg.id % 5 === 0){
+        batch.splice(3,0,{ id:`m${dlg.id}imgOnly`, dialogId:dlg.id, author:agentAuthor, text:'Вот изображение по вашему вопросу.', createdAt:t(80+dlg.id), status:'sent', attachments:[{ id:`f${dlg.id}imgOnly`, name:`photo-${dlg.id}.jpg`, size:'200 KB', contentType:'image/jpeg', url:'https://picsum.photos/seed/photo'+dlg.id+'/240/160', displayHint:'inline-image' }] });
+      }
+      // Дополнительное сообщение только с file вложением для каждого третьего диалога (если ещё нет файла в предыдущей вставке)
       if(dlg.id % 3 === 0){
-        batch.splice(3,0,{ id:`m${dlg.id}att`, dialogId:dlg.id, author:agentAuthor, text:'Прикрепляю файл с деталями.', createdAt:t(80+dlg.id), status:'sent', attachments:[{ id:'f1', name:`report-${dlg.id}.pdf`, size:'256 КБ', contentType:'application/pdf' }] });
+        batch.splice(4,0,{ id:`m${dlg.id}fileOnly`, dialogId:dlg.id, author:agentAuthor, text:'Прикрепляю файл с деталями.', createdAt:t(75+dlg.id), status:'sent', attachments:[{ id:`f${dlg.id}fileOnly`, name:`details-${dlg.id}.xlsx`, size:'512 KB', contentType:'application/vnd.ms-excel', displayHint:'file' }] });
+      }
+      // Подсчёт статистики по вложениям
+      for(const m of batch){
+        if(Array.isArray(m.attachments)){
+          for(const a of m.attachments){
+            const v = a.displayHint || (a.contentType && a.contentType.startsWith('image/')) ? 'inline-image' : 'file';
+            // Используем нашу классификацию для точности
+            const variant = (a.displayHint) ? a.displayHint : (a.contentType && a.contentType.startsWith('image/') ? 'inline-image':'file');
+            if(variant === 'inline-image') inlineImageCount++; else fileCount++;
+          }
+        }
       }
       MessageStore.ingestBatch(dlg.id, batch, { position:'append' });
     }
+    console.log('[seedDemoMessages] Attachments summary:', { inlineImage: inlineImageCount, file: fileCount });
   }
 
   /* ====== Утилиты ======
@@ -410,6 +564,73 @@
     if (!el) return;
     el.setAttribute('aria-hidden', String(isHidden));
   }
+
+  /* ====== Image Preview Modal ======
+     Ленивая инициализация: создаём один экземпляр и переиспользуем.
+     Особенности:
+       - Закрытие по ESC, клику на оверлей, кнопке крестика.
+       - Trap focus внутри модалки (два интерактивных элемента).
+       - Кнопка скачивания использует download и прямую ссылку.
+  */
+  const ImagePreviewModal = (() => {
+    let overlay = null;
+    let btnClose = null;
+    let btnDownload = null;
+    let imgEl = null;
+    let fileNameEl = null;
+    let previouslyFocused = null;
+
+    function ensureDom(){
+      if(overlay) return;
+      overlay = document.createElement('div');
+      overlay.className = 'image-modal__overlay';
+      overlay.setAttribute('role','dialog');
+      overlay.setAttribute('aria-modal','true');
+      overlay.innerHTML = `\n        <div class="image-modal">\n          <button type="button" class="image-modal__close" aria-label="Закрыть предпросмотр">\n            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>\n          </button>\n          <div class="image-modal__img-wrap">\n            <img class="image-modal__img" alt="" />\n          </div>\n          <div class="image-modal__bottom">\n            <div class="image-modal__filename" id="imageModalFilename"></div>\n            <a class="image-modal__download" id="imageModalDownload" target="_blank" rel="noopener" download>\n              <img class="image-modal__download-icon" src="images/download.svg" alt="" aria-hidden="true" />\n              <span>Скачать</span>\n            </a>\n          </div>\n        </div>`;
+      btnClose = overlay.querySelector('.image-modal__close');
+      btnDownload = overlay.querySelector('#imageModalDownload');
+      imgEl = overlay.querySelector('.image-modal__img');
+      fileNameEl = overlay.querySelector('#imageModalFilename');
+
+      overlay.addEventListener('click', (e)=>{ if(e.target === overlay) close(); });
+      btnClose.addEventListener('click', close);
+      document.addEventListener('keydown', onKeydown);
+    }
+
+    function onKeydown(e){
+      if(!overlay || !overlay.isConnected) return;
+      if(e.key === 'Escape'){
+        e.preventDefault();
+        close();
+      } else if(e.key === 'Tab'){
+        const focusables = [btnClose, btnDownload];
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        if(e.shiftKey && document.activeElement === first){ e.preventDefault(); last.focus(); }
+        else if(!e.shiftKey && document.activeElement === last){ e.preventDefault(); first.focus(); }
+      }
+    }
+
+    function open({ url, name }){
+      ensureDom();
+      previouslyFocused = document.activeElement;
+      imgEl.src = url;
+      imgEl.alt = name || '';
+      fileNameEl.textContent = name || '';
+      btnDownload.setAttribute('href', url);
+      if(name) btnDownload.setAttribute('download', name); else btnDownload.removeAttribute('download');
+      document.body.appendChild(overlay);
+      requestAnimationFrame(()=>btnClose.focus());
+    }
+
+    function close(){
+      if(!overlay) return;
+      if(overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      if(previouslyFocused && previouslyFocused.focus) previouslyFocused.focus();
+    }
+
+    return { open, close };
+  })();
 
   /* ====== Рендер ======
      Перерисовывает список текущей страницы. Подписки на события — ниже.
@@ -629,6 +850,7 @@
     const wrapper = document.createElement('div');
     wrapper.className = 'chat__composer-wrapper';
     wrapper.innerHTML = `
+      <input type="file" id="fileInput" multiple style="display:none" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" />
       <div class="chat__composer" role="group" aria-label="Отправка сообщения оператором">
         <div class="chat__composer-main">
           <textarea class="chat__input" id="chatInput" placeholder="Введите сообщение... (Enter - отправить, Ctrl+K - шаблоны)" aria-label="Поле ввода сообщения" rows="1"></textarea>
@@ -642,6 +864,7 @@
           </div>
         </div>
       </div>
+      <div class="chat__pending" id="pendingAttachments" aria-live="polite" aria-label="Вложения к сообщению"></div>
       <div class="chat__composer-bottom">
         <div class="chat__composer-hint" id="chatShortcuts" aria-hidden="false">
           <span class="chat__shortcut-key"><kbd>Enter</kbd> — отправить</span>
@@ -659,15 +882,152 @@
     const btnSend = wrapper.querySelector('#btnSend');
     const btnAttach = wrapper.querySelector('#btnAttach');
     const btnTemplates = wrapper.querySelector('#btnTemplates');
+    const fileInput = wrapper.querySelector('#fileInput');
+    const pendingRoot = wrapper.querySelector('#pendingAttachments');
+
+    // Локальное состояние вложений композера (не попадает в MessageStore до отправки)
+    const pending = []; // { id, file, name, sizeBytes, sizeLabel, contentType, url, status, progress, displayHint }
+    let pendingCounter = 1;
+
+    function formatBytes(bytes){
+      if(bytes == null) return '';
+      const thresh = 1024;
+      if(bytes < thresh) return bytes + ' B';
+      const units = ['KB','MB','GB'];
+      let u = -1; let value = bytes;
+      do { value /= thresh; ++u; } while(value >= thresh && u < units.length-1);
+      return value.toFixed(value < 10 ? 1 : 0) + ' ' + units[u];
+    }
+
+    function isLikelyImage(file){
+      if(!file) return false;
+      if(file.type && file.type.startsWith('image/')) return true;
+      return /\.(png|jpe?g|gif|webp|avif)$/i.test(file.name);
+    }
+
+    function createPendingModel(file){
+      const id = 'p'+(pendingCounter++);
+      const url = URL.createObjectURL(file);
+      const sizeBytes = file.size;
+      return {
+        id,
+        file,
+        name: file.name,
+        sizeBytes,
+        sizeLabel: formatBytes(sizeBytes),
+        contentType: file.type || '',
+        url,
+        status: 'uploading', // uploading|ready|error
+        progress: 0,
+        displayHint: undefined,
+      };
+    }
+
+    function renderPending(){
+      if(!pendingRoot) return;
+      if(!pending.length){ pendingRoot.innerHTML=''; return; }
+      const parts = [];
+      for(const att of pending){
+        const isImg = isLikelyImage(att.file);
+        const variantClass = isImg? 'pending-attach--img':'pending-attach--file';
+        const progBar = att.status === 'uploading' ? `<div class="pending-attach__progress"><div class="pending-attach__progress-bar" style="width:${att.progress}%"></div></div>` : '';
+        const statusLabel = att.status === 'error' ? '<span class="pending-attach__status pending-attach__status--error">Ошибка</span>' : att.status === 'ready' ? '' : '<span class="pending-attach__status pending-attach__status--spin" aria-label="Загрузка"></span>';
+        const removeBtn = `<button type="button" class="pending-attach__remove" data-remove-id="${att.id}" title="Удалить" aria-label="Удалить вложение"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg></button>`;
+        let body = '';
+        if(isImg){
+          body = `<div class="pending-attach__thumb"><img src="${att.url}" alt="" /></div>`;
+        } else {
+          body = `<div class="pending-attach__icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16c0 1.1.9 2 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg></div>`;
+        }
+        parts.push(`<div class="pending-attach ${variantClass} pending-attach--${att.status}" data-pending-id="${att.id}">
+          ${body}
+          <div class="pending-attach__info">
+            <div class="pending-attach__name" title="${att.name}">${att.name}</div>
+            <div class="pending-attach__meta">${att.sizeLabel}</div>
+            ${progBar}
+          </div>
+          ${statusLabel}
+          ${removeBtn}
+        </div>`);
+      }
+      pendingRoot.innerHTML = parts.join('');
+    }
+
+    function updateSendBtnState(){
+      const hasText = textarea.value.trim().length > 0;
+      const hasReadyAtt = pending.some(a=>a.status==='ready');
+      const uploading = pending.some(a=>a.status==='uploading');
+      // Разрешаем отправку если есть текст или хотя бы один готовый аттач
+      const enabled = hasText || hasReadyAtt;
+      btnSend.disabled = !enabled;
+      btnSend.classList.toggle('is-disabled', !enabled);
+      btnSend.dataset.uploading = uploading ? 'true':'false';
+    }
+
+    function simulateUpload(model){
+      // Имитация: скорость ~1000-2000мс
+      const totalMs = 1000 + Math.random()*1500;
+      const started = performance.now();
+      function step(){
+        if(model.status !== 'uploading') return; // мог быть удалён
+        const elapsed = performance.now() - started;
+        model.progress = Math.min(100, Math.round(elapsed / totalMs * 100));
+        renderPending();
+        updateSendBtnState();
+        if(elapsed >= totalMs){
+          // 5% шанс ошибки для демонстрации
+          if(Math.random() < 0.05){
+            model.status = 'error';
+            model.progress = 0;
+          } else {
+            model.status = 'ready';
+            model.progress = 100;
+            // Определяем displayHint
+            if(isLikelyImage(model.file) && model.sizeBytes <= INLINE_IMAGE_MAX_BYTES){
+              model.displayHint = 'inline-image';
+            } else {
+              model.displayHint = 'file';
+            }
+          }
+          renderPending();
+          updateSendBtnState();
+        } else {
+          requestAnimationFrame(step);
+        }
+      }
+      requestAnimationFrame(step);
+    }
+
+    function addFiles(list){
+      for(const file of list){
+        const model = createPendingModel(file);
+        pending.push(model);
+        simulateUpload(model);
+      }
+      renderPending();
+      updateSendBtnState();
+    }
+
+    function removePending(id){
+      const idx = pending.findIndex(a=>a.id===id);
+      if(idx>=0){
+        const [m] = pending.splice(idx,1);
+        try{ if(m.url) URL.revokeObjectURL(m.url); }catch(e){}
+        renderPending();
+        updateSendBtnState();
+      }
+    }
+
+    pendingRoot.addEventListener('click', (e)=>{
+      const btn = e.target.closest('[data-remove-id]');
+      if(btn){
+        removePending(btn.getAttribute('data-remove-id'));
+      }
+    });
 
     function autoResize(){
       textarea.style.height = 'auto';
       textarea.style.height = Math.min(textarea.scrollHeight, 180) + 'px';
-    }
-    function updateSendBtnState(){
-      const enabled = textarea.value.trim().length > 0;
-      btnSend.disabled = !enabled;
-      btnSend.classList.toggle('is-disabled', !enabled);
     }
     textarea.addEventListener('input', () => {
       autoResize();
@@ -676,20 +1036,45 @@
     autoResize();
     updateSendBtnState();
 
-    btnAttach.addEventListener('click', () => { console.log('[TODO] attach file dialog'); });
+    btnAttach.addEventListener('click', () => { fileInput.click(); });
+    fileInput.addEventListener('change', (e)=>{
+      const files = Array.from(e.target.files || []);
+      if(files.length){ addFiles(files); }
+      fileInput.value=''; // чтобы одно и то же имя файла можно было выбрать повторно
+    });
     function triggerTemplates(){ console.log('[TODO] open templates modal/popup'); }
     btnTemplates.addEventListener('click', triggerTemplates);
     btnSend.addEventListener('click', sendMessagePlaceholder);
 
     function sendMessagePlaceholder(){
       const value = textarea.value.trim();
-      if(!value){
-        console.log('[composer] пустое сообщение');
+      const readyAtts = pending.filter(a=>a.status==='ready');
+      if(!value && !readyAtts.length){
+        console.log('[composer] пустое сообщение без готовых вложений');
         return;
       }
       // Добавление сообщения оператора в текущий диалог
       if(state.selectedId != null){
-        addMessage(state.selectedId, { author:'operator', text:value, createdAt: new Date() });
+        const attachments = readyAtts.map(m => ({
+          id: 'upl:' + m.id,
+            name: m.name,
+            size: m.sizeLabel,
+            contentType: m.contentType,
+            url: m.url,
+            downloadUrl: m.url,
+            displayHint: m.displayHint
+        }));
+        addMessage(state.selectedId, { author:'operator', text:value || (attachments.length? '': ''), attachments, createdAt: new Date() });
+        // Очистить pending. ВАЖНО: не отзывать objectURL тех вложений, которые мы только что добавили в чат,
+        // иначе blob станет недоступным для предпросмотра (модалка откроется пустой).
+        const usedUrls = new Set(readyAtts.map(m=>m.url));
+        for(const m of pending){
+          if(!usedUrls.has(m.url)){
+            try{ if(m.url) URL.revokeObjectURL(m.url); }catch(e){}
+          }
+        }
+        pending.length = 0;
+        renderPending();
       } else {
         console.warn('[composer] нет выбранного диалога');
       }
@@ -729,6 +1114,22 @@
     const isBot = dialogData.origin !== 'operator';
     const el = isBot ? createAiBanner(dialogData.id) : createOperatorComposer();
     dom.chatFooter.appendChild(el);
+  }
+
+  // Делегирование клика по inline изображениям внутри тела чата
+  if(dom.chatBody){
+    dom.chatBody.addEventListener('click', (e)=>{
+      // Если клик по кнопке скачивания внутри inline image — позволяем скачать и не открываем модалку
+      const dlBtn = e.target.closest('.msg-image__download');
+      if(dlBtn) return; // браузер выполнит стандартное скачивание
+      const fig = e.target.closest && e.target.closest('.msg-image');
+      if(!fig || !dom.chatBody.contains(fig)) return;
+      const url = fig.getAttribute('data-url');
+      const name = fig.getAttribute('data-name') || 'image';
+      if(url){
+        ImagePreviewModal.open({ url, name });
+      }
+    });
   }
 
   /* ====== События: список (делегирование) ====== */
