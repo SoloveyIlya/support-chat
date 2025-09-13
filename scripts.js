@@ -69,6 +69,7 @@
     chatUser: document.getElementById('chatUser'),
     chatMeta: document.getElementById('chatMeta'),
     chatBadge: document.getElementById('chatBadge'),
+    chatBody: document.getElementById('chatBody'),
     projectSelect: document.getElementById('projectSelect'),
     projectDisplay: document.getElementById('projectDisplay'),
     selectRoot: document.querySelector('.select'),
@@ -77,9 +78,320 @@
     projectMenuBtn: document.getElementById('projectMenuBtn'),
     projectMenu: document.getElementById('projectMenu'),
     dialogMenu: null,
+    chatFooter: document.getElementById('chatFooter'),
   };
 
   let dialogMenuAnchorBtn = null; // кнопка-источник для позиционирования меню диалога
+
+  /* ====== Сообщения (store v2 — нормализованный) ======
+     Сообщение (расширяемый формат):
+       id: string (может быть 'temp:<n>' для локальных черновиков)
+       dialogId: number
+       author: 'client'|'bot'|'operator'|'system'
+       text: string
+       attachments?: Array<{ id:string|number, name:string, size?:string, contentType?:string, downloadUrl?:string }>
+       createdAt: string|Date
+       status?: 'pending'|'sent'|'delivered'|'read'|'failed'
+       seq?: number (монотонный порядковый номер с сервера — зарезервировано)
+     Хранение:
+       store[dialogId] = { byId:{}, order:[ids], lowestSeq, highestSeq }
+     Цели: быстрые обновления, дедупликация, будущая пагинация (append/prepend).
+  */
+  const MessageStore = (() => {
+    const dialogs = Object.create(null); // dialogId -> bucket
+    let tempCounter = 1; // для генерации временных id (демо)
+    const listeners = new Set();
+
+    function ensure(dialogId){
+      if(!dialogs[dialogId]){
+        dialogs[dialogId] = {
+          byId: Object.create(null),
+          order: [],
+          lowestSeq: null,
+          highestSeq: null,
+          hasMoreBackward: true,
+          hasMoreForward: false,
+        };
+      }
+      return dialogs[dialogId];
+    }
+
+    function nextTempId(){ return 'temp:' + (tempCounter++); }
+
+    function notify(evt){ listeners.forEach(l=>{ try{ l(evt); }catch(e){ /* silent */ } }); }
+
+    function sortOrder(bucket){
+      bucket.order.sort((a,b)=>{
+        const A = bucket.byId[a];
+        const B = bucket.byId[b];
+        if(!A || !B) return 0;
+        const ak = A.seq != null ? A.seq : new Date(A.createdAt).getTime();
+        const bk = B.seq != null ? B.seq : new Date(B.createdAt).getTime();
+        return ak - bk;
+      });
+    }
+
+    function ingestBatch(dialogId, list, { position='append', replace=false } = {}){
+      const bucket = ensure(dialogId);
+      if(replace){ bucket.byId = Object.create(null); bucket.order = []; }
+      const added = [];
+      for(const msg of list){
+        if(!msg || !msg.id) continue;
+        const id = String(msg.id);
+        if(!bucket.byId[id]){
+          bucket.byId[id] = msg;
+          if(position === 'prepend') bucket.order.unshift(id); else bucket.order.push(id);
+          added.push(id);
+        } else {
+          bucket.byId[id] = { ...bucket.byId[id], ...msg }; // merge
+        }
+      }
+      if(added.length) sortOrder(bucket);
+      notify({ type:'batch', dialogId, added });
+      return added;
+    }
+
+    function addLocal(dialogId, { author, text, attachments = [], createdAt = new Date(), status='pending' }){
+      const bucket = ensure(dialogId);
+      const id = nextTempId();
+      const msg = { id, dialogId, author, text, attachments, createdAt, status };
+      bucket.byId[id] = msg;
+      bucket.order.push(id);
+      notify({ type:'add', dialogId, id, local:true });
+      return msg;
+    }
+
+    function updateStatus(dialogId, id, status){
+      const bucket = ensure(dialogId);
+      if(bucket.byId[id]){
+        bucket.byId[id] = { ...bucket.byId[id], status };
+        notify({ type:'status', dialogId, id, status });
+      }
+    }
+
+    function getList(dialogId){
+      const bucket = ensure(dialogId);
+      return bucket.order.map(i => bucket.byId[i]).filter(Boolean);
+    }
+
+    function subscribe(fn){ listeners.add(fn); return ()=>listeners.delete(fn); }
+
+    return { ingestBatch, addLocal, updateStatus, getList, subscribe };
+  })();
+
+  function escapeHtml(str){
+    return str
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;')
+      .replace(/'/g,'&#39;');
+  }
+
+  function formatMsgDate(date){
+    try {
+      const d = date instanceof Date ? date : new Date(date);
+      // Формат: 13 сентября 15:41
+      // toLocaleString для ru-RU с day+month+time даёт нужный регистр.
+      const opts = { day:'numeric', month:'long', hour:'2-digit', minute:'2-digit' };
+      let s = d.toLocaleString('ru-RU', opts);
+      // Удаляем возможные запятые (некоторые окружения вставляют)
+      s = s.replace(/,/g,'');
+      return s;
+    } catch(e){ return ''; }
+  }
+
+  function buildAuthorIcon(author){
+    if(author === 'bot'){
+      return `<svg class="msg__author-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>`;
+    }
+    // operator
+    return `<svg class="msg__author-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
+  }
+
+  function createAttachmentBlock(att){
+    const nameEsc = escapeHtml(att.name);
+    const sizeEsc = escapeHtml(att.size || '');
+    return createFileAttachment(att);
+  }
+
+  /* ====== Attachments v2 ======
+     Типы отображения:
+       - Inline image (фотография) если contentType image/* и size <= INLINE_IMAGE_MAX_BYTES
+       - Файловый блок (универсальный) для остальных случаев
+     Порог и расширяемость вынесены в константы
+  */
+  const INLINE_IMAGE_MAX_BYTES = 800 * 1024; // 800KB порог (регулируемый)
+  const IMAGE_MIME_PREFIX = 'image/';
+  const IMAGE_EXTENSIONS = ['jpg','jpeg','png','webp','gif'];
+
+  function isImageAttachment(att){
+    if(!att) return false;
+    if(att.contentType && att.contentType.startsWith(IMAGE_MIME_PREFIX)) return true;
+    // fallback по расширению
+    if(att.name){
+      const m = att.name.toLowerCase().match(/\.([a-z0-9]+)$/);
+      if(m && IMAGE_EXTENSIONS.includes(m[1])) return true;
+    }
+    return false;
+  }
+
+  function parseSizeToBytes(sizeStr){
+    if(!sizeStr) return null;
+    // ожидаем форматы типа "123 KB" / "2.4 MB"
+    const m = sizeStr.trim().match(/([0-9]+(?:\.[0-9]+)?)\s*(kb|mb|b)/i);
+    if(!m) return null;
+    const num = parseFloat(m[1]);
+    const unit = m[2].toLowerCase();
+    if(unit === 'b') return num;
+    if(unit === 'kb') return num * 1024;
+    if(unit === 'mb') return num * 1024 * 1024;
+    return null;
+  }
+
+  function isInlineImage(att){
+    if(!isImageAttachment(att)) return false;
+    const bytes = parseSizeToBytes(att.size);
+    if(bytes != null && bytes > INLINE_IMAGE_MAX_BYTES) return false;
+    return true;
+  }
+
+  function createInlineImageAttachment(att){
+    const safeUrl = escapeHtml(att.downloadUrl || att.url || '');
+    const alt = escapeHtml(att.name || 'image');
+    return `<figure class="msg-image" data-file-id="${att.id}"><img src="${safeUrl}" alt="${alt}" loading="lazy" decoding="async" /></figure>`;
+  }
+
+  function createFileAttachment(att){
+    const nameEsc = escapeHtml(att.name || 'Файл');
+    const sizeEsc = escapeHtml(att.size || '');
+    const downloadUrl = escapeHtml(att.downloadUrl || att.url || '#');
+    return `<div class="msg-file" data-file-id="${att.id}">
+      <div class="msg-file__icon" aria-hidden="true"><img src="images/image.svg" alt="" /></div>
+      <div class="msg-file__body">
+        <div class="msg-file__name" title="${nameEsc}">${nameEsc}</div>
+        <div class="msg-file__size">${sizeEsc}</div>
+      </div>
+      <a class="msg-file__download" href="${downloadUrl}" download title="Скачать">
+        <img src="images/download.svg" alt="" />
+      </a>
+    </div>`;
+  }
+  function createMessageHtml(msg){
+    const textHtml = `<div class="msg__text">${escapeHtml(msg.text)}</div>`;
+    const metaHtml = `<div class="msg__meta"><time datetime="${new Date(msg.createdAt).toISOString()}">${formatMsgDate(msg.createdAt)}</time></div>`;
+    if(msg.author === 'client'){
+      return `<div class="msg msg--client" data-msg-id="${msg.id}">
+        <div class="msg__bubble">
+          ${textHtml}
+          ${metaHtml}
+        </div>
+      </div>`;
+    }
+    const isBot = msg.author === 'bot';
+    const authorLabel = isBot ? 'Нейросеть' : 'Оператор';
+    const authorHtml = `<div class="msg__author">${buildAuthorIcon(isBot ? 'bot' : 'operator')}<span class="msg__author-label">${authorLabel}</span></div>`;
+    let attachmentsHtml = '';
+    if(Array.isArray(msg.attachments) && msg.attachments.length){
+      const parts = [];
+      for(const att of msg.attachments){
+        if(isInlineImage(att)) parts.push(createInlineImageAttachment(att));
+        else parts.push(createFileAttachment(att));
+      }
+      attachmentsHtml = `<div class="msg__attachments">${parts.join('')}</div>`;
+    }
+    return `<div class="msg msg--agent ${isBot ? 'msg--bot':'msg--operator'}" data-msg-id="${msg.id}">
+      ${authorHtml}
+      <div class="msg__bubble">
+        ${textHtml}
+        ${attachmentsHtml}
+        ${metaHtml}
+      </div>
+    </div>`;
+  }
+
+  function appendMessageToDom(dialogId, msg){
+    if(!dom.chatBody || state.selectedId !== dialogId) return;
+    const wrap = document.createElement('div');
+    wrap.innerHTML = createMessageHtml(msg);
+    dom.chatBody.appendChild(wrap.firstElementChild);
+    dom.chatBody.scrollTop = dom.chatBody.scrollHeight;
+  }
+
+  // Backward совместимый интерфейс для текущего composer
+  function addMessage(dialogId, { author, text, attachments = [], createdAt = new Date() }){
+    const msg = MessageStore.addLocal(dialogId, { author, text, attachments, createdAt, status: author === 'operator' ? 'pending':'sent' });
+    appendMessageToDom(dialogId, msg);
+    return msg;
+  }
+
+  function renderMessagesForDialog(dialogId){
+    if(!dom.chatBody) return;
+    dom.chatBody.innerHTML = '';
+    if(dialogId == null) return;
+    const list = MessageStore.getList(dialogId);
+    const frag = document.createDocumentFragment();
+    for(const m of list){
+      const w = document.createElement('div');
+      w.innerHTML = createMessageHtml(m);
+      frag.appendChild(w.firstElementChild);
+    }
+    dom.chatBody.appendChild(frag);
+    dom.chatBody.scrollTop = dom.chatBody.scrollHeight;
+  }
+
+  function seedDemoMessages(){
+    // Если первый диалог уже имеет сообщения — считаем, что сид выполнен
+    if(MessageStore.getList(1).length) return;
+
+    const intro = [
+      'Здравствуйте, у меня вопрос по заказу',
+      'Добрый день! Подскажите статус по заказу',
+      'Привет! Нужна помощь по заказу',
+      'Добрый вечер. Хочу уточнить информацию по заказу',
+      'Здравствуйте! Не пришло уведомление по заказу'
+    ];
+    const follow = [
+      'Пока ничего не изменилось.',
+      'Сейчас нахожусь в пункте выдачи.',
+      'Приложил(а) скриншот, посмотрите.',
+      'Если нужно — могу прислать ещё данные.',
+      'В приложении файл, там подробности.'
+    ];
+    const thanks = [ 'Спасибо!', 'Благодарю за оперативность!', 'Отлично, жду.', 'Спасибо, буду ждать обновления.', 'Супер, благодарю.' ];
+    const botReplies = [
+      'Здравствуйте! Я виртуальный помощник, сейчас уточню детали.',
+      'Проверяю информацию, это может занять минуту…',
+      'Секунду, собираю данные по вашему запросу.',
+      'Уточняю статусы доставки — сообщу как только узнаю.'
+    ];
+    const opReplies = [
+      'Добрый день! Сейчас посмотрю информацию по вашему заказу.',
+      'Принял запрос, проверяю у логистики.',
+      'Перепроверяю статусы в системе, минутку.',
+      'Занёс запрос в очередь, скоро вернусь с ответом.'
+    ];
+
+    const now = Date.now();
+    for(const dlg of MOCK_DIALOGS){
+      const seed = dlg.id * 13;
+      const pick = (arr, sOff=0) => arr[(seed + sOff) % arr.length];
+      const t = (mins) => new Date(now - mins*60000).toISOString();
+      const agentAuthor = dlg.origin === 'bot' ? 'bot' : 'operator';
+      const batch = [
+        { id:`m${dlg.id}a`, dialogId:dlg.id, author:'client', text:pick(intro), createdAt:t(120+dlg.id), status:'sent' },
+        { id:`m${dlg.id}b`, dialogId:dlg.id, author:agentAuthor, text:pick(agentAuthor==='bot'?botReplies:opReplies,1), createdAt:t(118+dlg.id), status:'sent' },
+        { id:`m${dlg.id}c`, dialogId:dlg.id, author:'client', text:pick(follow,2), createdAt:t(90+dlg.id), status:'sent' },
+        { id:`m${dlg.id}d`, dialogId:dlg.id, author:agentAuthor, text:'Передаю дальше, уточняю детали…', createdAt:t(70+dlg.id), status:'sent' },
+        { id:`m${dlg.id}e`, dialogId:dlg.id, author:'client', text:pick(thanks,3), createdAt:t(10+dlg.id), status:'sent' }
+      ];
+      // Пример вложения для каждого третьего диалога
+      if(dlg.id % 3 === 0){
+        batch.splice(3,0,{ id:`m${dlg.id}att`, dialogId:dlg.id, author:agentAuthor, text:'Прикрепляю файл с деталями.', createdAt:t(80+dlg.id), status:'sent', attachments:[{ id:'f1', name:`report-${dlg.id}.pdf`, size:'256 КБ', contentType:'application/pdf' }] });
+      }
+      MessageStore.ingestBatch(dlg.id, batch, { position:'append' });
+    }
+  }
 
   /* ====== Утилиты ======
      Мелкие вспомогательные функции без побочных эффектов.
@@ -199,10 +511,15 @@
             dom.chatBadge.className = badge.className;
             dom.chatBadge.innerHTML = `${badge.iconSvg}${badge.label}`;
           }
+          // Обновить футер под выбранный диалог
+          renderChatFooterForDialog(data);
+          // Отрисовать сообщения для выбранного диалога
+          renderMessagesForDialog(data.id);
         }
       } else {
         dom.chatPanel.hidden = true;
         dom.workspaceEmpty.hidden = false;
+        if (dom.chatFooter) dom.chatFooter.innerHTML = '';
       }
     }
   }
@@ -221,6 +538,197 @@
       ? `<svg class="dialog__bot-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>`
       : `<svg class="dialog__user-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
     return { className, label, iconSvg, html: `${iconSvg}${label}`, isBot };
+  }
+
+  /**
+   * Устанавливает origin диалога и возвращает объект (или null).
+   * @param {number} id
+   * @param {string} origin 'bot'|'operator'
+   */
+  function setDialogOrigin(id, origin){
+    const dlg = getDialogById(id);
+    if (!dlg) return null;
+    dlg.origin = origin;
+    return dlg;
+  }
+
+  /**
+   * Обновляет бейдж в списке для конкретного диалога без полного ререндера страницы.
+   */
+  function updateDialogListBadge(id){
+    const li = dom.list && dom.list.querySelector(`li.dialog[data-id="${id}"]`);
+    if(!li) return;
+    const badgeNode = li.querySelector('.badge__bot, .badge__person');
+    if(!badgeNode) return;
+    const badge = buildOriginBadge('operator');
+    badgeNode.className = badge.className;
+    badgeNode.innerHTML = `${badge.iconSvg}${badge.label}`;
+  }
+
+  /**
+   * Завершает переход с бота на оператора: обновляет данные, список, шапку и футер.
+   * source: 'menu' | 'banner'
+   */
+  function performSwitchToOperator(dialogId, { source } = { source: 'banner' }){
+    if (dialogId == null) return;
+    const dlg = getDialogById(dialogId);
+    if (!dlg || dlg.origin === 'operator') return; // уже оператор — ничего не делаем
+
+    if (source === 'menu') {
+      // 1) удалить кнопку из меню (если ещё есть) и закрыть меню ДО изменений UI
+      if (dom.dialogMenu) {
+        const toOpBtn = dom.dialogMenu.querySelector('[data-action="dlgToOperator"], #dlgToOperator, [id="dlgToOperator"]');
+        if (toOpBtn) toOpBtn.remove();
+      }
+      if (typeof setDialogMenuOpen === 'function') {
+        setDialogMenuOpen(false);
+      }
+    }
+
+    // 2) обновить данные
+    setDialogOrigin(dialogId, 'operator');
+
+    // 3) обновить элемент списка (бейдж)
+    updateDialogListBadge(dialogId);
+
+    // 4) если открыт именно этот диалог — обновить шапку и футер
+    if (state.selectedId === dialogId) {
+      const badge = buildOriginBadge('operator');
+      if (dom.chatBadge) {
+        dom.chatBadge.className = badge.className;
+        dom.chatBadge.innerHTML = `${badge.iconSvg}${badge.label}`;
+      }
+      // Перерисовать футер на composer
+      const dlgData = getDialogById(dialogId);
+      renderChatFooterForDialog(dlgData);
+    }
+
+    console.log('[switch] dialog', dialogId, 'переведён на оператора (source:', source, ')');
+  }
+
+  /* ====== Футер чата (динамический) ====== */
+  function createAiBanner(dialogId){
+    const banner = document.createElement('div');
+    banner.className = 'chat__ai-banner';
+    banner.setAttribute('role','button');
+    banner.setAttribute('tabindex','0');
+    banner.setAttribute('aria-pressed','false');
+    banner.dataset.dialogId = String(dialogId);
+    banner.setAttribute('aria-label','Ответы даёт нейросеть. Нажмите чтобы перевести на ручное управление');
+    banner.innerHTML = `<h3 class="chat__ai-banner-title">Ответы даёт нейросеть</h3><p class="chat__ai-banner-subtitle">Нажмите «Перевести на ручное управление», чтобы отвечать вручную</p>`;
+    function activate(){
+      performSwitchToOperator(dialogId, { source: 'banner' });
+      banner.setAttribute('aria-pressed','true');
+    }
+    banner.addEventListener('click', activate);
+    banner.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); activate(); }});
+    return banner;
+  }
+
+  function createOperatorComposer(){
+    const wrapper = document.createElement('div');
+    wrapper.className = 'chat__composer-wrapper';
+    wrapper.innerHTML = `
+      <div class="chat__composer" role="group" aria-label="Отправка сообщения оператором">
+        <div class="chat__composer-main">
+          <textarea class="chat__input" id="chatInput" placeholder="Введите сообщение... (Enter - отправить, Ctrl+K - шаблоны)" aria-label="Поле ввода сообщения" rows="1"></textarea>
+          <div class="chat__composer-actions">
+            <button type="button" class="chat__icon-btn" id="btnAttach" title="Прикрепить файл" aria-label="Прикрепить файл">
+              <img src="images/attach.svg" alt="" aria-hidden="true" width="20" height="20" />
+            </button>
+            <button type="button" class="chat__icon-btn" id="btnTemplates" title="Шаблоны (Ctrl+K)" aria-label="Открыть шаблоны (Ctrl+K)">
+              <img src="images/templates.svg" alt="" aria-hidden="true" width="20" height="20" />
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="chat__composer-bottom">
+        <div class="chat__composer-hint" id="chatShortcuts" aria-hidden="false">
+          <span class="chat__shortcut-key"><kbd>Enter</kbd> — отправить</span>
+          <span class="chat__shortcut-key"><kbd>Ctrl+K</kbd> — шаблоны</span>
+        </div>
+        <button type="button" class="chat__send-btn" id="btnSend" aria-label="Отправить сообщение">
+          <img src="images/send.svg" class="chat__send-btn-icon" alt="" aria-hidden="true" />
+          <span>Отправить</span>
+        </button>
+      </div>
+    `;
+
+    // Логика: авто-высота textarea + управление состоянием кнопки отправки
+    const textarea = wrapper.querySelector('#chatInput');
+    const btnSend = wrapper.querySelector('#btnSend');
+    const btnAttach = wrapper.querySelector('#btnAttach');
+    const btnTemplates = wrapper.querySelector('#btnTemplates');
+
+    function autoResize(){
+      textarea.style.height = 'auto';
+      textarea.style.height = Math.min(textarea.scrollHeight, 180) + 'px';
+    }
+    function updateSendBtnState(){
+      const enabled = textarea.value.trim().length > 0;
+      btnSend.disabled = !enabled;
+      btnSend.classList.toggle('is-disabled', !enabled);
+    }
+    textarea.addEventListener('input', () => {
+      autoResize();
+      updateSendBtnState();
+    });
+    autoResize();
+    updateSendBtnState();
+
+    btnAttach.addEventListener('click', () => { console.log('[TODO] attach file dialog'); });
+    function triggerTemplates(){ console.log('[TODO] open templates modal/popup'); }
+    btnTemplates.addEventListener('click', triggerTemplates);
+    btnSend.addEventListener('click', sendMessagePlaceholder);
+
+    function sendMessagePlaceholder(){
+      const value = textarea.value.trim();
+      if(!value){
+        console.log('[composer] пустое сообщение');
+        return;
+      }
+      // Добавление сообщения оператора в текущий диалог
+      if(state.selectedId != null){
+        addMessage(state.selectedId, { author:'operator', text:value, createdAt: new Date() });
+      } else {
+        console.warn('[composer] нет выбранного диалога');
+      }
+      textarea.value='';
+      autoResize();
+      updateSendBtnState();
+    }
+
+    // Горячие клавиши внутри textarea
+    textarea.addEventListener('keydown', (e)=>{
+      if(e.key === 'Enter' && !e.shiftKey){
+        e.preventDefault();
+        sendMessagePlaceholder();
+      } else if ((e.key === 'k' || e.key === 'K') && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        triggerTemplates();
+      }
+    });
+
+    // Глобальный Ctrl+K когда фокус в textarea (дублирование логики для надёжности)
+    wrapper.addEventListener('keydown', (e)=>{
+      if ((e.key === 'k' || e.key === 'K') && (e.ctrlKey || e.metaKey)) {
+        if(document.activeElement === textarea){
+          e.preventDefault();
+          triggerTemplates();
+        }
+      }
+    });
+
+    return wrapper;
+  }
+
+  function renderChatFooterForDialog(dialogData){
+    if (!dom.chatFooter) return;
+    dom.chatFooter.innerHTML = '';
+    if (!dialogData) return;
+    const isBot = dialogData.origin !== 'operator';
+    const el = isBot ? createAiBanner(dialogData.id) : createOperatorComposer();
+    dom.chatFooter.appendChild(el);
   }
 
   /* ====== События: список (делегирование) ====== */
@@ -368,7 +876,9 @@
   }
   function handleDlgToOperator(ctx){
     // TODO: Реализовать перевод диалога на живого оператора
-    console.log('[dialog action] ToOperator', ctx);
+      console.log('[dialog action] ToOperator', ctx);
+      const { dialogId } = ctx || {};
+      performSwitchToOperator(dialogId, { source: 'menu' });
   }
   function handleDlgUnsubscribe(ctx){
     // TODO: Реализовать отмену подписки пользователя на рассылку/уведомления
@@ -482,6 +992,9 @@
     // Состояние правой панели по умолчанию
     if (dom.chatPanel) dom.chatPanel.hidden = true;
 
+    // Демо-сообщения
+    seedDemoMessages();
+
   // Контекстное меню диалога создаётся лениво при первом открытии (ensureDialogMenuContainer)
 
     // Список: делегирование
@@ -552,6 +1065,8 @@
       // TODO: интегрировать реальный logout
       console.log('Logout clicked');
     });
+
+    // Футер будет наполняться при выборе диалога (selectDialog -> renderChatFooterForDialog)
 
     // Popup menu (проект)
     dom.projectMenuBtn.addEventListener('click', (e) => {
