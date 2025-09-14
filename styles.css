@@ -525,17 +525,31 @@ button { font: inherit; color: inherit; }
   color: var(--white);
 }
 
-/* ЛОГАУТ: те же акцентные hover/focus, но при нажатии (active) — опасный цвет */
+/* ====== КНОПКА ЛОГАУТА ======
+   Близка по стилю к .chat__icon-btn, но:
+   - фиксированные размеры 36x36
+   - полное центрирование SVG (grid + padding:0)
+   - базовый цвет иконки = var(--danger) (через .text-danger или дублируем для надёжности)
+   - при hover: фон var(--danger), цвет иконки var(--danger-bright) (анимация 150ms)
+*/
 #btnLogout {
-  transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+  width:36px;
+  height:36px;
+  padding:0; /* переопределяем padding базового .btn */
+  display:inline-grid;
+  place-items:center;
+  background:transparent;
+  border:1px solid transparent;
+  border-radius:10px;
+  line-height:0; /* убирает возможное вертикальное смещение */
+  cursor:pointer;
+  color:var(--danger); /* гарантируем начальный цвет */
+  transition: background-color .15s ease, color .15s ease, border-color .15s ease;
 }
-#btnLogout:hover,
-#btnLogout:focus-visible {
-  background: var(--danger-hover);
-}
-#btnLogout:active {
-  background: var(--danger-hover);
-}
+#btnLogout .icon { width:16px; height:16px; display:block; }
+#btnLogout:hover { background:var(--danger-hover); color:var(--danger-bright); }
+#btnLogout:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+#btnLogout:active { filter:brightness(.95); }
 
 
 /* ====== POPUP MENU ======
