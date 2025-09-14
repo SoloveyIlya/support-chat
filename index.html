@@ -256,5 +256,44 @@
   </div>
 
   <script src="scripts.js" defer></script>
+  
+  <!-- MODAL: Unsubscribe Confirmation -->
+  <div class="confirm-modal" id="unsubscribeModal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="unsubscribeTitle">
+    <div class="confirm-modal__dialog" role="document">
+      <header class="confirm-modal__header">
+        <!-- Warning triangular icon (accent) -->
+        <svg class="confirm-modal__icon-svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--warning-accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
+          <path d="M12 9v5" />
+          <path d="M12 17h.01" />
+        </svg>
+        <h2 class="confirm-modal__title" id="unsubscribeTitle">Отменить подписку</h2>
+        <button class="confirm-modal__close" id="unsubscribeClose" type="button" aria-label="Закрыть окно">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </header>
+      <div class="confirm-modal__body">
+        <p class="confirm-modal__text">Вы уверены, что хотите отменить подписку для пользователя <span class="confirm-modal__user" id="unsubscribeUserName">user_X</span>?</p>
+        <p class="confirm-modal__note">Это действие нельзя будет отменить.</p>
+        <div class="confirm-modal__error" id="unsubscribeError" role="alert" hidden>
+          <div class="confirm-modal__error-icon" aria-hidden="true">
+            <svg class="confirm-modal__error-icon-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--danger-bright)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
+              <path d="M12 9v5" />
+              <path d="M12 17h.01" />
+            </svg>
+          </div>
+          <div class="confirm-modal__error-text" id="unsubscribeErrorText">Не удалось найти и отменить подписку</div>
+        </div>
+      </div>
+      <footer class="confirm-modal__footer">
+        <button type="button" class="confirm-modal__btn" id="unsubscribeCancel">Отмена</button>
+        <button type="button" class="confirm-modal__btn confirm-modal__btn--danger" id="unsubscribeConfirm">
+          <span class="btn__spinner" aria-hidden="true" hidden></span>
+          <span class="confirm-modal__btn-label">Отменить подписку</span>
+        </button>
+      </footer>
+    </div>
+  </div>
 </body>
 </html>
