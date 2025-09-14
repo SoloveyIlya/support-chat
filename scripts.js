@@ -272,6 +272,18 @@
     { id: 25, name: 'user_25', time: '00:50', platform: 'Android 11 • ФРИИ 2.4.7', origin: 'bot' },
   ];
 
+  // Архивные диалоги (демо данные). id > 1000 для избежания коллизий
+  const ARCHIVE_DIALOGS = [
+    { id: 1001, name: 'archived_user_1', time: 'Вчера', platform: 'Android 13 • ФРИИ 1.3.7', origin: 'operator' },
+    { id: 1002, name: 'archived_user_2', time: 'Вчера', platform: 'iOS 16.7 • ФРИИ 2.8.6', origin: 'bot' },
+    { id: 1003, name: 'archived_user_3', time: '2 дн. назад', platform: 'Android 12 • ФРИИ 1.2.1', origin: 'operator' },
+    { id: 1004, name: 'archived_user_4', time: '3 дн. назад', platform: 'iOS 15.4 • ФРИИ 1.1.0', origin: 'bot' },
+    { id: 1005, name: 'archived_user_5', time: '5 дн. назад', platform: 'Android 11 • ФРИИ 2.4.7', origin: 'operator' },
+  ];
+
+  // Флаг ленивого сида архивных сообщений
+  let archiveSeeded = false;
+
   /* ====== Состояние ======
      Единый источник истины для пагинации и выбранного диалога.
   */
@@ -279,6 +291,7 @@
     pageSize: 10,
     currentPage: 1,
     selectedId: null,
+    viewMode: 'active', // 'active' | 'archive'
   };
 
   /* ====== DOM ======
@@ -774,6 +787,39 @@
     console.log('[seedDemoMessages] Attachments summary:', { inlineImage: inlineImageCount, file: fileCount });
   }
 
+  // Архив: сид сообщений (ленивый). Используем более "исторические" timestamps.
+  function seedArchiveMessages(){
+    if(archiveSeeded) return;
+    archiveSeeded = true;
+    const now = Date.now();
+    const day = 24 * 60 * 60 * 1000;
+    const sampleClient = [
+      'Здравствуйте, вопрос был решён, спасибо.',
+      'Подтверждаю закрытие обращения.',
+      'Информация получила подтверждение, можно архивировать.',
+      'Ошибок больше не наблюдаю — тикет можно завершить.',
+      'Всё работает стабильно, благодарю.'
+    ];
+    const sampleAgent = [
+      'Рады были помочь! Обращайтесь снова при необходимости.',
+      'Закрываю обращение. Хорошего дня!',
+      'Отлично, тогда архивируем тикет.',
+      'Спасибо за подтверждение. Завершаю диалог.',
+      'Всегда рады помочь!'
+    ];
+    for(const dlg of ARCHIVE_DIALOGS){
+      const base = now - (dlg.id - 1000) * day; // сдвиг по дням назад
+      const msgs = [
+        { id: `a${dlg.id}m1`, dialogId: dlg.id, author: 'client', text: sampleClient[(dlg.id)%sampleClient.length], createdAt: new Date(base - 6*3600*1000).toISOString(), status:'sent' },
+        { id: `a${dlg.id}m2`, dialogId: dlg.id, author: dlg.origin === 'bot' ? 'bot':'operator', text: sampleAgent[(dlg.id)%sampleAgent.length], createdAt: new Date(base - 5.5*3600*1000).toISOString(), status:'sent', attachments: (dlg.id % 2 === 0) ? [ { id:`a${dlg.id}f1`, name:`summary-${dlg.id}.pdf`, size:'180 KB', contentType:'application/pdf', displayHint:'file' } ] : undefined },
+        { id: `a${dlg.id}m3`, dialogId: dlg.id, author: 'client', text: 'Подтверждаю закрытие и отсутствие проблем.', createdAt: new Date(base - 5*3600*1000).toISOString(), status:'sent' },
+        { id: `a${dlg.id}m4`, dialogId: dlg.id, author: dlg.origin === 'bot' ? 'bot':'operator', text: 'Диалог переведён в архив.', createdAt: new Date(base - 4.5*3600*1000).toISOString(), status:'sent', attachments: (dlg.id % 3 === 0) ? [ { id:`a${dlg.id}img`, name:`final-${dlg.id}.png`, size:'90 KB', contentType:'image/png', url:`https://picsum.photos/seed/arch${dlg.id}/260/160`, displayHint:'inline-image' } ] : undefined }
+      ];
+      MessageStore.ingestBatch(dlg.id, msgs, { position:'append' });
+    }
+    console.log('[seedArchiveMessages] seeded for', ARCHIVE_DIALOGS.length, 'dialogs');
+  }
+
   /* ====== Templates Store ======
      Хранилище шаблонов ответов с поддержкой CRUD операций.
   */
@@ -1219,13 +1265,16 @@
    * Обновляет пагинационные контролы и счётчик.
    * Побочные эффекты: изменяет DOM внутри списка и элементов управления.
    */
+  function currentDialogs(){ return state.viewMode === 'active' ? MOCK_DIALOGS : ARCHIVE_DIALOGS; }
+
   function renderList() {
-    const totalPages = Math.max(1, Math.ceil(MOCK_DIALOGS.length / state.pageSize));
+    const source = currentDialogs();
+    const totalPages = Math.max(1, Math.ceil(source.length / state.pageSize));
     state.currentPage = Math.min(state.currentPage, totalPages);
 
     dom.list.innerHTML = '';
 
-    const pageItems = paginate(MOCK_DIALOGS, state.currentPage, state.pageSize);
+    const pageItems = paginate(source, state.currentPage, state.pageSize);
     const fragment = document.createDocumentFragment();
 
     for (const item of pageItems) {
@@ -1273,7 +1322,7 @@
     dom.btnNext.disabled = isLast;
     dom.btnPrev.classList.toggle('btn--disabled', isFirst);
     dom.btnNext.classList.toggle('btn--disabled', isLast);
-    dom.totalCounter.textContent = String(MOCK_DIALOGS.length);
+    dom.totalCounter.textContent = String(source.length);
   }
 
   /**
@@ -1736,7 +1785,7 @@
     }
   }
   function goNext() {
-    const totalPages = Math.max(1, Math.ceil(MOCK_DIALOGS.length / state.pageSize));
+    const totalPages = Math.max(1, Math.ceil(currentDialogs().length / state.pageSize));
     if (state.currentPage < totalPages) {
       state.currentPage++;
       renderList();
@@ -2070,6 +2119,15 @@
       const isOpen = dom.projectMenu.getAttribute('aria-hidden') === 'false';
       setProjectMenuOpen(!isOpen);
     });
+    // Переключение активные / архивные
+    const openArchiveBtn = document.getElementById('menuOpenArchive');
+    if(openArchiveBtn){
+      openArchiveBtn.addEventListener('click', (e)=>{
+        e.preventDefault();
+        toggleArchiveMode();
+        setProjectMenuOpen(false);
+      });
+    }
     // Закрывать меню проекта после выбора пункта
     if (dom.projectMenu) {
       dom.projectMenu.addEventListener('click', (e) => {
@@ -2159,7 +2217,32 @@
    */
   function getDialogById(id){
     if (id == null) return null;
-    return MOCK_DIALOGS.find(d => d.id === id) || null;
+    return MOCK_DIALOGS.find(d => d.id === id) || ARCHIVE_DIALOGS.find(d => d.id === id) || null;
+  }
+
+  // ====== Переключение активные / архивные диалоги ======
+  function applyViewMode(){
+    const isArchive = state.viewMode === 'archive';
+    document.documentElement.classList.toggle('view-archive', isArchive);
+    const headerTitle = document.querySelector('.app-header__title');
+    if(headerTitle){ headerTitle.textContent = isArchive ? 'Архивные диалоги' : 'Активные диалоги'; }
+    if(dom.list){ dom.list.setAttribute('aria-label', isArchive ? 'Архивные диалоги' : 'Активные диалоги'); }
+    const menuItem = document.getElementById('menuOpenArchive');
+    if(menuItem){
+      const labelSpan = menuItem.querySelector('.popup-menu__label');
+      if(labelSpan){ labelSpan.textContent = isArchive ? 'Открыть активные диалоги' : 'Открыть архивные чаты'; }
+    }
+  }
+
+  function toggleArchiveMode(){
+    state.viewMode = state.viewMode === 'active' ? 'archive' : 'active';
+    state.selectedId = null;
+    state.currentPage = 1;
+    if(dom.chatPanel) dom.chatPanel.hidden = true;
+    if(dom.workspaceEmpty) dom.workspaceEmpty.hidden = false;
+    if(state.viewMode === 'archive') seedArchiveMessages();
+    renderList();
+    applyViewMode();
   }
 
   // Экспорт API для использования из консоли/других модулей
@@ -2168,10 +2251,58 @@
   window.app.dialogs = dialogsApi;
   // Экспортируем доступ к данным диалога для внешних модулей (unsubscribe modal)
   window.getDialogById = getDialogById;
+  window.toggleArchiveMode = toggleArchiveMode;
+  window.ARCHIVE_DIALOGS = ARCHIVE_DIALOGS;
   // Удобные глобальные алиасы (для отладки)
   window.setDialogTimer = setDialogTimer;
   window.showDialogTimer = showDialogTimer;
   window.hideDialogTimer = hideDialogTimer;
+
+  // === ЕДИНЫЙ ПУБЛИЧНЫЙ API (AppAPI) ===
+  // Централизованный контракт для интеграции. Сохраняет обратную совместимость с существующими глобалами.
+  (function exposeUnifiedApi(){
+    if(window.AppAPI) return; // не переопределяем если уже создали (на случай повторной загрузки)
+    const unified = {
+      version: '1.0.0',
+      auth: window.Auth ? {
+        isAuthed: window.Auth.isAuthed,
+        getPhase: window.Auth.getPhase,
+        showLogin: window.Auth.showLogin,
+        showApp: window.Auth.showApp,
+        logout: window.Auth.performLogout
+      } : null,
+      dialogs: {
+        select: (id) => { try { return selectDialog(Number(id)); } catch(e){ console.warn('[AppAPI.dialogs.select] error', e); } },
+        getById: (id) => { try { return getDialogById(Number(id)); } catch(e){ return null; } },
+        toggleArchive: () => { try { return toggleArchiveMode(); } catch(e){ console.warn('[AppAPI.dialogs.toggleArchive] error', e); } },
+        switchToOperator: (id, meta={}) => { try { return performSwitchToOperator(Number(id), { source: meta.source || 'api' }); } catch(e){ console.warn('[AppAPI.dialogs.switchToOperator] error', e); } },
+        timers: {
+          set: (id, value, opts={}) => { try { return setDialogTimer(Number(id), value, opts); } catch(e){ return false; } },
+          show: (id) => { try { return showDialogTimer(Number(id)); } catch(e){ return false; } },
+          hide: (id) => { try { return hideDialogTimer(Number(id)); } catch(e){ return false; } }
+        }
+      },
+      messages: {
+        add: (dialogId, payload) => {
+          try {
+            if(!payload || typeof payload !== 'object') throw new Error('payload must be object');
+            const { author='operator', text='', attachments=[], createdAt=new Date() } = payload;
+            return addMessage(Number(dialogId), { author, text, attachments, createdAt });
+          } catch(e){ console.warn('[AppAPI.messages.add] error', e); return null; }
+        }
+      },
+      templates: {
+        open: () => { try { return TemplatesModal.show(); } catch(e){ console.warn('[AppAPI.templates.open] error', e); } }
+      },
+      modals: {
+        logout: () => { if(window.LogoutConfirm && window.LogoutConfirm.open) window.LogoutConfirm.open({ trigger:'api' }); },
+        unsubscribe: (dialogId) => { if(window.UnsubscribeModal && window.UnsubscribeModal.open) window.UnsubscribeModal.open(Number(dialogId), { trigger:'api' }); }
+      },
+      notify: (title, message='', opts={}) => { try { return window.showServiceNotification ? window.showServiceNotification(title, message, opts) : null; } catch(e){ console.warn('[AppAPI.notify] error', e); return null; } },
+      ping: () => ({ ok:true, ts: Date.now(), phase: window.Auth ? window.Auth.getPhase() : null })
+    };
+    window.AppAPI = unified;
+  })();
 
   // Старт
   init();
