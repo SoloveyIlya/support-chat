@@ -10,6 +10,13 @@
   --border: #1f2630;
   --shadow: 0 6px 16px rgba(0,0,0,.35);
   --radius: 12px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-pill: 999px;
+  --transition-fast: .12s ease;
+  --transition-base: .15s ease;
+  --focus-outline: 2px solid var(--accent);
 
   /* ====== ТЕКСТ ====== */
   --text: #e6e9ee;
@@ -92,6 +99,77 @@
   --msg-file-bg: #1c1c21;         /* базовый фон файла (бот/клиент) */
   --msg-file-icon-bg: #1c1c21;    /* фон квадрата иконки */
   --msg-file-border: #2b2b31;     /* стандартная граница файла */
+  --disabled-bg: #23232b;
+  --disabled-color: #6c7480;
+
+  /* ====== ДОПОЛНИТЕЛЬНЫЕ ИЗВЛЕЧЁННЫЕ ЦВЕТА (рефактор хардкодов) ====== */
+  /* Поверхности */
+  --surface-deep: #121216;            /* глубокий фон (modal content, tabs active) */
+  --surface-tab: #2b2b31;             /* фон контейнера вкладок / альтернативные панели */
+  --surface-agent: #1c1c21;           /* фон контейнера сообщений агента */
+  --surface-client: #242429;          /* фон сообщений клиента */
+  --surface-client-legacy: #3a3a42;   /* старый фон (оставлен для обратной совместимости) */
+  --surface-thumb: #1f1f24;           /* превью / thumbnail фоны */
+  --surface-icon: #242429;            /* иконные квадратные подложки */
+
+  /* Границы / разделители сообщений */
+  --border-client: #35353b;           /* граница сообщений клиента (новая) */
+  --border-client-legacy: #44444c;    /* старая граница клиента */
+  --border-agent: #26262b;            /* граница агентского контейнера */
+  --border-bubble: #2f3036;           /* граница базового пузыря */
+
+  /* Сообщения */
+  --msg-bubble-bg: #2b2b31;           /* базовый пузырь */
+  --msg-bubble-border: #2f3036;       /* граница базового пузыря */
+  --msg-client-bg: #242429;           /* актуальный фон клиента */
+  --msg-client-border: #35353b;       /* актуальная граница клиента */
+  --msg-client-bg-legacy: #3a3a42;    /* устаревший фон клиента */
+  --msg-client-border-legacy: #44444c;/* устаревшая граница клиента */
+  --msg-agent-bg: #1c1c21;            /* фон контейнера агента */
+  --msg-agent-border: #26262b;        /* граница контейнера агента */
+  --msg-bot-bg: #223822;              /* фон бота */
+  --operator-meta: rgba(255,255,255,.75); /* подписи внутри операторского (accent) блока */
+
+  /* Прелоад / прогресс */
+  --progress-bg: #26262d;             /* фон прогресс-бара загрузки */
+  --spinner-track: #35353b;           /* цвет кольца спиннера */
+
+  /* Опасные / предупреждения расширенные */
+  --danger-bright: #ef4444;           /* более яркий красный для иконок/действий */
+
+  /* Оверлеи / альфы */
+  --hover-translucent: #24242980;     /* полупрозрачный hover подсветки */
+  --operator-file-bg: #24242933;      /* фон файлов во всплывающем (оператор) */
+
+  /* Полупрозрачные белые */
+  --white-a4: rgba(255,255,255,0.04);
+  --white-a6: rgba(255,255,255,0.06);
+  --white-a10: rgba(255,255,255,0.10);
+  --white-a12: rgba(255,255,255,0.12);
+  --white-a18: rgba(255,255,255,0.18);
+  --white-a75: rgba(255,255,255,0.75);
+
+  /* Полупрозрачные чёрные */
+  --black-a15: rgba(0,0,0,.15);
+  --black-a40: rgba(0,0,0,.40);
+  --black-a54: rgba(0,0,0,.54);
+  --black-a55: rgba(0,0,0,.55);
+
+  /* Модальные окна / предпросмотр изображений */
+  --image-download-bg: var(--black-a55);
+  --image-hover-overlay: var(--black-a15);
+  --modal-overlay-bg: var(--black-a54);
+  --modal-shadow-strong: 0 10px 32px -4px var(--black-a55), 0 4px 12px -2px var(--black-a40);
+  --modal-close-bg: var(--white-a6);
+  --modal-close-border: var(--white-a10);
+  --modal-close-bg-hover: var(--white-a12);
+  --modal-close-border-hover: var(--white-a18);
+
+  /* Фокус */
+  --focus-color: #4d90fe;             /* запасной цвет для outline специфических элементов */
+  /* Дополнительные тени (ранее инлайн) */
+  --shadow-popover: 0 8px 32px rgba(0,0,0,0.45);
+  --shadow-card-strong: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
 }
 
 
@@ -112,8 +190,38 @@ html, body {
   margin: 0;
 }
 
+  /* Визуально скрытый, но доступный текст / элементы (например, skip-link в начале страницы) */
+  .visually-hidden {
+    position: absolute !important;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0 0 0 0);
+    white-space: nowrap; border: 0;
+  }
+
+  /* Skip link появляется при фокусе */
+  a.visually-hidden:focus, a.visually-hidden:focus-visible {
+    position: static !important;
+    width: auto; height: auto;
+    margin: 0;
+    clip: auto;
+    white-space: normal;
+    background: var(--accent);
+    color: var(--white);
+    padding: 8px 14px;
+    border-radius: 8px;
+    display: inline-block;
+    z-index: 1000;
+  }
+
 img { display: inline-block; height: 1em; width: 1em; object-fit: contain; }
 button { font: inherit; color: inherit; }
+/* ====== УТИЛИТЫ ====== */
+.focus-ring:focus-visible { outline: var(--focus-outline); outline-offset:2px; }
+.sr-only { position:absolute !important; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
+.no-scrollbar { scrollbar-width:none; }
+.no-scrollbar::-webkit-scrollbar { display:none; }
+::placeholder { color: var(--input-placeholder); }
 
 /* ====== Утилиты цвета ====== */
 .text-danger { color: var(--danger); }
@@ -281,7 +389,7 @@ button { font: inherit; color: inherit; }
   background: var(--surface-elevated);
   border: 1px solid var(--border);
   border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.45);
+  box-shadow: var(--shadow-popover);
   z-index: 10;
   padding: 10px;
   font-size: 14px;
@@ -441,7 +549,7 @@ button { font: inherit; color: inherit; }
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 14px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.45);
+  box-shadow: var(--shadow-popover);
   padding: 6px;
   z-index: 20;
   width: 280px;
@@ -879,7 +987,7 @@ button { font: inherit; color: inherit; }
   width: 18px;
   height: 18px;
 }
-.chat__input::placeholder { color: #97a3b4; }
+.chat__input::placeholder { color: var(--text-muted-alt); }
 .chat__shortcuts { font-size:12px; color:var(--muted); display:flex; flex-wrap:wrap; gap:12px; }
 .chat__shortcut-key { display:inline-flex; align-items:center; gap:4px; }
 .chat__shortcut-key kbd { background:var(--panel-2); border:1px solid var(--border); padding:2px 6px; border-radius:6px; font-size:11px; font-weight:500; color:var(--text); }
@@ -891,9 +999,9 @@ button { font: inherit; color: inherit; }
 .chat__send-btn:disabled,
 .chat__send-btn[disabled],
 .chat__send-btn.is-disabled {
-  background: #23232b;
-  color: #6c7480;
-  border-color: #23232b;
+  background: var(--disabled-bg);
+  color: var(--disabled-color);
+  border-color: var(--disabled-bg);
   opacity: 0.7;
   cursor: not-allowed;
   pointer-events: none;
@@ -909,7 +1017,7 @@ button { font: inherit; color: inherit; }
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: var(--black-a55);
   display: none;
   align-items: center;
   justify-content: center;
@@ -925,7 +1033,7 @@ button { font: inherit; color: inherit; }
 }
 
 .templates-modal__dialog {
-  background: #121216; /* Обновлено по новому требованию */
+  background: var(--surface-deep); /* Обновлено по новому требованию */
   border: 1px solid var(--border);
   border-radius: 16px;
   width: 90vw;
@@ -933,7 +1041,7 @@ button { font: inherit; color: inherit; }
   max-height: 80vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--shadow-card-strong);
 }
 
 .templates-modal__header {
@@ -994,7 +1102,7 @@ button { font: inherit; color: inherit; }
 .templates-modal__tabs-container {
   display: flex;
   width: 100%;
-  background: #2b2b31; /* обновлённый фон таблетки */
+  background: var(--surface-tab); /* обновлённый фон таблетки */
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 4px 6px;
@@ -1025,8 +1133,8 @@ button { font: inherit; color: inherit; }
 
 .templates-modal__tab[aria-selected="true"] {
   color: var(--white);
-  background: #121216; /* требуемый фон активной вкладки */
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
+  background: var(--surface-deep); /* фон активной вкладки */
+  box-shadow: inset 0 0 0 1px var(--white-a4);
 }
 
 .templates-modal__tab:focus-visible {
@@ -1042,7 +1150,7 @@ button { font: inherit; color: inherit; }
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  background: #121216; /* общий фон контента */
+  background: var(--surface-deep); /* общий фон контента */
 }
 
 .templates-modal__tab-panel {
@@ -1062,12 +1170,12 @@ button { font: inherit; color: inherit; }
   display: flex;
   flex-direction: column;
   gap: 12px;
-  background: #121216;
+  background: var(--surface-deep);
 }
 
 .template-item {
-  background: #121216;
-  border: 1px solid #2b2b31;
+  background: var(--surface-deep);
+  border: 1px solid var(--surface-tab);
   border-radius: 12px;
   padding: 16px;
   display: flex;
@@ -1080,8 +1188,8 @@ button { font: inherit; color: inherit; }
 
 /* Hover эффекты для элементов списка шаблонов отключены по требованию */
 .template-item:hover {
-  background: #24242980; /* новый цвет полупрозрачной подсветки */
-  border-color: #2b2b31; /* границу не меняем (можно позднее убрать если не нужна) */
+  background: var(--hover-translucent); /* полупрозрачная подсветка */
+  border-color: var(--surface-tab); /* границу не меняем */
 }
 
 .template-item__content {
@@ -1145,7 +1253,7 @@ button { font: inherit; color: inherit; }
 }
 
 .template-action-btn--delete {
-  color: #ef4444;
+  color: var(--danger-bright);
 }
 
 .templates-empty {
@@ -1186,8 +1294,8 @@ button { font: inherit; color: inherit; }
 }
 
 .template-form__input {
-  background: #121216; /* унификация с контейнером */
-  border: 1px solid #2b2b31;
+  background: var(--surface-deep); /* унификация с контейнером */
+  border: 1px solid var(--surface-tab);
   border-radius: 8px;
   padding: 12px 14px;
   font-size: 14px;
@@ -1205,8 +1313,8 @@ button { font: inherit; color: inherit; }
 }
 
 .template-form__textarea {
-  background: #121216;
-  border: 1px solid #2b2b31;
+  background: var(--surface-deep);
+  border: 1px solid var(--surface-tab);
   border-radius: 8px;
   padding: 12px 14px;
   font-size: 14px;
@@ -1252,7 +1360,7 @@ button { font: inherit; color: inherit; }
 .template-form__btn--secondary:focus-visible {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--white);
 }
 
 .template-form__btn--primary {
@@ -1287,7 +1395,7 @@ button { font: inherit; color: inherit; }
 .templates-modal__divider {
   position: relative;
   height: 12px; /* визуальный отступ + линия внутри */
-  background: #121216; /* фон всего блока */
+  background: var(--surface-deep); /* фон всего блока */
   margin: 8px 0 4px 0; /* обновлённые отступы */
 }
 .templates-modal__divider::before {
@@ -1297,7 +1405,7 @@ button { font: inherit; color: inherit; }
   right: 0;
   top: 50%;
   height: 1px;
-  background: #2b2b31; /* сама линия */
+  background: var(--surface-tab); /* сама линия */
   transform: translateY(-50%);
 }
 
@@ -1315,7 +1423,7 @@ button { font: inherit; color: inherit; }
 .templates-modal__shortcut-item { display:flex; align-items:center; gap:6px; }
 .templates-modal__kbd {
   background: var(--panel-2);
-  border: 1px solid #2b2b31;
+  border: 1px solid var(--surface-tab);
   padding: 2px 8px;
   border-radius: 6px;
   font-size: 11px;
@@ -1325,26 +1433,26 @@ button { font: inherit; color: inherit; }
   line-height: 1.2;
 }
 .templates-modal__shortcut-label { color: var(--muted); }
-.chat__composer-hint { font-size:12px; color:#97a3b4; display:flex; gap:12px; flex-wrap:wrap; }
+.chat__composer-hint { font-size:12px; color:var(--text-muted-alt); display:flex; gap:12px; flex-wrap:wrap; }
 
 /* ====== Pending attachments (локальные, до отправки) ====== */
 .chat__pending { display:flex; flex-wrap:wrap; gap:10px; margin-top:4px; }
 .pending-attach { position:relative; background:var(--panel-2); border:1px solid var(--border); border-radius:10px; padding:8px 10px; display:flex; flex-direction:row; align-items:stretch; gap:10px; min-width:180px; max-width:240px; }
 .pending-attach--img { padding:6px; }
-.pending-attach__thumb { width:72px; height:54px; border-radius:8px; overflow:hidden; flex-shrink:0; background:#1f1f24; display:block; }
+.pending-attach__thumb { width:72px; height:54px; border-radius:8px; overflow:hidden; flex-shrink:0; background:var(--surface-thumb); display:block; }
 .pending-attach__thumb img { width:100%; height:100%; object-fit:cover; display:block; }
-.pending-attach__icon { width:42px; height:42px; display:grid; place-items:center; background:#242429; border-radius:8px; color:var(--white); flex-shrink:0; }
+.pending-attach__icon { width:42px; height:42px; display:grid; place-items:center; background:var(--surface-icon); border-radius:8px; color:var(--white); flex-shrink:0; }
 .pending-attach__info { display:flex; flex-direction:column; gap:4px; min-width:0; flex:1 1 auto; }
 .pending-attach__name { font-size:12px; font-weight:500; color:var(--white); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .pending-attach__meta { font-size:11px; color:var(--text-muted-alt); }
-.pending-attach__progress { position:relative; width:100%; height:4px; background:#26262d; border-radius:3px; overflow:hidden; margin-top:2px; }
+.pending-attach__progress { position:relative; width:100%; height:4px; background:var(--progress-bg); border-radius:3px; overflow:hidden; margin-top:2px; }
 .pending-attach__progress-bar { height:100%; background:var(--accent); width:0; transition:width .2s ease; }
 .pending-attach__remove { position:absolute; top:4px; right:4px; width:20px; height:20px; display:grid; place-items:center; background:transparent; border:1px solid transparent; color:var(--muted); border-radius:6px; cursor:pointer; padding:0; }
 .pending-attach__remove:hover { background:var(--hover-subtle); color:var(--white); }
 .pending-attach__remove:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
 .pending-attach__status { position:absolute; bottom:4px; right:6px; font-size:11px; font-weight:500; }
 .pending-attach__status--error { color:var(--danger); }
-.pending-attach__status--spin { width:14px; height:14px; border:2px solid #35353b; border-top-color:var(--accent); border-radius:50%; animation:spin .9s linear infinite; position:absolute; bottom:4px; right:6px; }
+.pending-attach__status--spin { width:14px; height:14px; border:2px solid var(--spinner-track); border-top-color:var(--accent); border-radius:50%; animation:spin .9s linear infinite; position:absolute; bottom:4px; right:6px; }
 .pending-attach--error { border-color:var(--danger); }
 @keyframes spin { to { transform:rotate(360deg); } }
 
@@ -1369,16 +1477,16 @@ button { font: inherit; color: inherit; }
 .msg__author-icon { width:14px; height:14px; display:inline-block; }
 .msg__author-label { line-height:1; }
 
-.msg__bubble { background: #2b2b31; border:1px solid #2f3036; border-radius:14px; padding:14px 16px; display:flex; flex-direction:column; gap:8px; position:relative; }
-.msg--client .msg__bubble { background:#3a3a42; border-color:#44444c; }
-.msg--bot .msg__bubble { background:#223822; border-color: var(--badge__bot-border); }
-.msg--operator .msg__bubble { background:#2b2b31; }
+.msg__bubble { background: var(--msg-bubble-bg); border:1px solid var(--msg-bubble-border); border-radius:14px; padding:14px 16px; display:flex; flex-direction:column; gap:8px; position:relative; }
+.msg--client .msg__bubble { background:var(--msg-client-bg-legacy); border-color:var(--msg-client-border-legacy); }
+.msg--bot .msg__bubble { background:var(--msg-bot-bg); border-color: var(--badge__bot-border); }
+.msg--operator .msg__bubble { background:var(--msg-bubble-bg); }
 
 /* === Overrides: Message redesign (client + agent unified container) === */
-/* Клиент: фон у пузыря #242429; Агент (бот и оператор): фон у всего блока #1c1c21 */
-.msg--client .msg__bubble { background:#242429; border-color:#35353b; }
+/* Клиент: новый фон у пузыря (актуальный) & граница */
+.msg--client .msg__bubble { background:var(--msg-client-bg); border-color:var(--msg-client-border); }
 
-.msg--agent { background:#1c1c21; border:1px solid #26262b; border-radius:14px; padding:14px 16px; gap:8px; }
+.msg--agent { background:var(--msg-agent-bg); border:1px solid var(--msg-agent-border); border-radius:14px; padding:14px 16px; gap:8px; }
 /* Вложенный пузырь внутри агентского сообщения больше не нужен визуально */
 .msg--agent .msg__bubble { background:transparent !important; border:0 !important; padding:0; border-radius:0; }
 .msg--agent .msg__author { margin:0; }
@@ -1392,7 +1500,7 @@ button { font: inherit; color: inherit; }
 .msg--operator { background: var(--accent); border-color: var(--accent); }
 .msg--operator .msg__author { color: var(--white); }
 /* Сделаем подписи (meta) чуть более светлыми внутри яркого фона для контраста */
-.msg--operator .msg__meta { color: rgba(255,255,255,.75); }
+.msg--operator .msg__meta { color: var(--operator-meta); }
 
 /* === Layout fix: ограничиваем скролл только телом чата === */
 /* Проблема: при первой отправке сообщение увеличивало высоту панели и сам #chatPanel становился скролл-контейнером. */
@@ -1416,14 +1524,14 @@ button { font: inherit; color: inherit; }
 .msg-image img { display:block; width:100%; height:100%; object-fit:cover; transition:transform .15s ease; }
 .msg-image:hover img { transform:scale(1.05); }
 .msg-image { position:relative; }
-.msg-image__download { position:absolute; top:6px; right:6px; width:28px; height:28px; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.55); backdrop-filter:blur(4px); border-radius:6px; opacity:0; transform:translateY(-4px); transition:opacity .15s ease, transform .15s ease; text-decoration:none; }
+.msg-image__download { position:absolute; top:6px; right:6px; width:28px; height:28px; display:flex; align-items:center; justify-content:center; background:var(--image-download-bg); backdrop-filter:blur(4px); border-radius:6px; opacity:0; transform:translateY(-4px); transition:opacity .15s ease, transform .15s ease; text-decoration:none; }
 .msg-image__download img { display:none; }
-.msg-image__download-icon { width:16px; height:16px; stroke:#ffffff; color:#ffffff; display:block; pointer-events:none; }
+.msg-image__download-icon { width:16px; height:16px; stroke:var(--white); color:var(--white); display:block; pointer-events:none; }
 /* На случай если браузер игнорирует filter (например, already white) форсируем stroke/fill через mask подход не трогаем: svg уже белый. */
 .msg-image:hover .msg-image__download, .msg-image:focus-within .msg-image__download { opacity:1; transform:translateY(0); }
-.msg-image__download:focus { outline:2px solid var(--focus-color, #4d90fe); outline-offset:2px; }
+.msg-image__download:focus { outline:2px solid var(--focus-color); outline-offset:2px; }
 .msg-image--clickable{ cursor:pointer; }
-.msg-image--clickable:hover::after{ content:""; position:absolute; inset:0; background:rgba(0,0,0,.15); }
+.msg-image--clickable:hover::after{ content:""; position:absolute; inset:0; background:var(--image-hover-overlay); }
 
 /* === UPDATED: file attachment block (variant 2) === */
 /* === ЕДИНЫЙ БАЗОВЫЙ СТИЛЬ ДЛЯ ФАЙЛОВЫХ ВЛОЖЕНИЙ === */
@@ -1438,18 +1546,18 @@ button { font: inherit; color: inherit; }
 .msg-file__size { color: var(--text-muted-alt); }
 /* === Контекст оператора: переопределяем токены на акцент === */
 /* Оператор: полупрозрачная подложка и стандартная граница */
-.msg--operator { --msg-file-bg: #24242933; --msg-file-icon-bg: #24242933; --msg-file-border: #2b2b31; }
+.msg--operator { --msg-file-bg: var(--operator-file-bg); --msg-file-icon-bg: var(--operator-file-bg); --msg-file-border: var(--surface-tab); }
 /* Если потребуется другой оттенок для иконки, можно ввести --msg-file-icon-bg-alt и использовать внутри .msg--operator .msg-file__icon */
-.image-modal__overlay{ position:fixed; inset:0; background:rgba(0,0,0,.54); backdrop-filter:blur(2px); z-index:1000; display:flex; align-items:center; justify-content:center; padding:40px 32px; animation:fadeIn .18s ease; }
+.image-modal__overlay{ position:fixed; inset:0; background:var(--modal-overlay-bg); backdrop-filter:blur(2px); z-index:1000; display:flex; align-items:center; justify-content:center; padding:40px 32px; animation:fadeIn .18s ease; }
 /* Переменные для масштабирования предпросмотра */
 :root { --image-preview-max-width: 960px; --image-preview-max-height:84vh; }
-.image-modal{ width:100%; max-width:min(var(--image-preview-max-width),92vw); background:var(--panel); border:1px solid var(--border); border-radius:16px; box-shadow:0 10px 32px -4px rgba(0,0,0,.55),0 4px 12px -2px rgba(0,0,0,.4); display:flex; flex-direction:column; position:relative; }
-.image-modal__close{ position:absolute; top:10px; right:10px; width:28px; height:28px; display:inline-grid; place-items:center; border-radius:8px; background:rgba(255,255,255,.06); color:var(--white); border:1px solid rgba(255,255,255,.1); cursor:pointer; transition:background .15s ease,border-color .15s ease; }
-.image-modal__close:hover,.image-modal__close:focus-visible{ background:rgba(255,255,255,.12); border-color:rgba(255,255,255,.18); }
+.image-modal{ width:100%; max-width:min(var(--image-preview-max-width),92vw); background:var(--panel); border:1px solid var(--border); border-radius:16px; box-shadow:var(--modal-shadow-strong); display:flex; flex-direction:column; position:relative; }
+.image-modal__close{ position:absolute; top:10px; right:10px; width:28px; height:28px; display:inline-grid; place-items:center; border-radius:8px; background:var(--modal-close-bg); color:var(--white); border:1px solid var(--modal-close-border); cursor:pointer; transition:background .15s ease,border-color .15s ease; }
+.image-modal__close:hover,.image-modal__close:focus-visible{ background:var(--modal-close-bg-hover); border-color:var(--modal-close-border-hover); }
 .image-modal__img-wrap{ padding:34px 34px 12px 34px; display:flex; justify-content:center; }
 .image-modal__img{ max-width:100%; max-height:var(--image-preview-max-height); border-radius:12px; display:block; object-fit:contain; width:auto; height:auto; }
 .image-modal__bottom{ display:flex; align-items:center; justify-content:space-between; padding:12px 28px 22px 36px; gap:24px; }
-.image-modal__filename{ font-size:14px; color:#97a3b4; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.image-modal__filename{ font-size:14px; color:var(--text-muted-alt); font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .image-modal__download{ display:inline-flex; align-items:center; gap:6px; background:transparent; border:1px solid var(--accent); color:var(--accent); font-size:14px; font-weight:600; padding:8px 14px; border-radius:10px; cursor:pointer; transition:background-color .15s ease,color .15s ease; }
 .image-modal__download:hover,.image-modal__download:focus-visible{ background:var(--accent); color:var(--white); }
 .image-modal__download-icon{ width:18px; height:18px; display:block; }

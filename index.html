@@ -1,19 +1,31 @@
 <!doctype html>
 <!--
   Страница «Активные диалоги»
-  Архитектура:
-    - Стили: дизайн‑токены и компоненты в styles.css; цвета только через var(...).
-    - Иконки: где требуется динамический цвет — inline‑SVG с currentColor; <img> оставляем с фиксированным цветом.
-    - Доступность: aria-* обновляются в scripts.js; :focus-visible стилизован.
+  Архитектура / примечания рефакторинга:
+    - Все кастомные цвета — только через CSS переменные (см. styles.css).
+    - Добавлен SVG sprite для повторяющейся галочки select.
+    - Улучшены мета-теги и доступность: skip link, role="log" для чата.
+    - JS селекторы (id/class) сохранены без изменений для полной обратной совместимости.
 -->
-<html lang="ru">
+<html lang="ru" class="no-js">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Интерфейс оператора поддержки: активные диалоги, просмотр сообщений и шаблоны ответов." />
+  <meta name="theme-color" content="#11141b" />
+  <meta name="color-scheme" content="dark light" />
   <title>Активные диалоги — Чат поддержки</title>
   <link rel="stylesheet" href="styles.css" />
+  <script>document.documentElement.classList.remove('no-js');</script>
+  <!-- SVG SPRITE (inline) -->
+  <svg xmlns="http://www.w3.org/2000/svg" style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true" focusable="false">
+    <symbol id="icon-check" viewBox="0 0 18 18">
+      <path d="M5 9.5l3 3 5-5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+  </svg>
 </head>
 <body>
+  <a class="visually-hidden" href="#mainContent">Перейти к основному содержимому</a>
   <div class="shell">
     <!-- ХЕДЕР -->
     <header class="app-header">
@@ -35,7 +47,7 @@
     </header>
 
     <!-- ОСНОВНОЙ ЛЕЙАУТ: САЙДБАР + РАБОЧАЯ ОБЛАСТЬ -->
-    <div class="app">
+  <div class="app" id="mainContent">
       <!-- ЛЕВАЯ КОЛОНКА -->
       <aside class="sidebar" aria-label="Список диалогов">
         <!-- В САЙДБАРЕ — ТОЛЬКО СТРОКА ПРОЕКТА -->
@@ -57,19 +69,19 @@
             <div class="select__dropdown" id="projectDropdown" role="listbox" aria-labelledby="projectDisplay">
               <div class="select__option select__option--selected" data-value="АвтоЭксперт RU" tabindex="0" aria-selected="true">
                 <span class="select__check" aria-hidden="true">
-                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M5 9.5l3 3 5-5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><use href="#icon-check"/></svg>
                 </span>
                 АвтоЭксперт RU
               </div>
               <div class="select__option" data-value="АвтоЭксперт UA" tabindex="0" aria-selected="false">
                 <span class="select__check" aria-hidden="true">
-                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M5 9.5l3 3 5-5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><use href="#icon-check"/></svg>
                 </span>
                 АвтоЭксперт UA
               </div>
               <div class="select__option" data-value="Top Drive" tabindex="0" aria-selected="false">
                 <span class="select__check" aria-hidden="true">
-                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M5 9.5l3 3 5-5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><use href="#icon-check"/></svg>
                 </span>
                 Top Drive
               </div>
@@ -128,7 +140,7 @@
         </div>
 
         <!-- Правый блок чата: отображается только когда выбран диалог -->
-        <div class="chat" id="chatPanel" hidden>
+  <div class="chat" id="chatPanel" hidden>
           <!-- Шапка чата -->
           <header class="chat__header" id="chatHeader">
             <div class="chat__header-left">
@@ -141,8 +153,8 @@
           </header>
 
           <!-- Тело чата (сообщения) -->
-            <div class="chat__body" id="chatBody">
-              <!-- TODO: сообщения чата -->
+            <div class="chat__body" id="chatBody" role="log" aria-live="polite" aria-relevant="additions" aria-atomic="false">
+              <!-- Сообщения чата рендерятся динамически JS (MessageStore) -->
             </div>
 
           <!-- Нижняя область (футер) -->
@@ -180,7 +192,7 @@
               <path d="M16 13H8" />
               <path d="M16 17H8" />
             </svg>
-            <span class="templates-modal__tab-label">Шаблоны (<span id="templatesCount">5</span>)</span>
+            <span class="templates-modal__tab-label">Шаблоны (<span id="templatesCount" aria-live="polite" aria-atomic="true">5</span>)</span>
           </button>
           <button class="templates-modal__tab" id="createTab" role="tab" 
                   aria-selected="false" aria-controls="createPanel" tabindex="-1">
