@@ -282,6 +282,14 @@
 
   <script src="scripts.js" defer></script>
   
+  <!-- TOAST / SERVICE NOTIFICATIONS CONTAINER -->
+  <!--
+    Каркас для служебных уведомлений (toast), которые появляются справа снизу.
+    ARIA: живой регион polite — сообщения не перекрывают экранные ридеры критично.
+    Заполняется динамически функцией showServiceNotification(title, message, options).
+  -->
+  <div id="toastContainer" class="toast-container" aria-live="polite" aria-atomic="false"></div>
+  
   <!-- MODAL: Unsubscribe Confirmation -->
   <div class="confirm-modal" id="unsubscribeModal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="unsubscribeTitle">
     <div class="confirm-modal__dialog" role="document">

@@ -10,7 +10,8 @@
   --border: #1f2630;
   --shadow: 0 6px 16px rgba(0,0,0,.35);
   --radius: 12px;
-  --radius-sm: 6px;
+    display: flex;
+    flex-direction: column;
   --radius-md: 10px;
   --radius-lg: 14px;
   --radius-pill: 999px;
@@ -1720,4 +1721,29 @@ html.login-active #loginScreen { display:flex; }
 
 @media (max-width: 520px) {
   .login-card { padding: 28px 22px 30px; border-radius: 14px; }
+}
+
+/* ====== SERVICE TOAST NOTIFICATIONS ======
+   Контейнер фиксирован в правом нижнем углу. Каждый тост — карточка с заголовком и текстом.
+   Анимации: появление (slide + fade), исчезновение (fade + slight translate).
+*/
+.toast-container { position:fixed; z-index:5000; right:16px; bottom:16px; display:flex; flex-direction:column; gap:12px; max-width:360px; pointer-events:none; }
+.toast-container { max-width:none; }
+.toast { pointer-events:auto; background:transparent; border:none; border-radius:14px; padding:0; color:var(--text,#fff); box-shadow:0 4px 16px -4px rgba(0,0,0,.4),0 2px 4px -1px rgba(0,0,0,.3); display:flex; flex-direction:column; font:14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif; position:relative; overflow:hidden; min-width:22vw; min-height:13vh; }
+.toast::before { content:""; position:absolute; inset:0; background:linear-gradient(120deg,rgba(255,255,255,.04),rgba(255,255,255,0)); pointer-events:none; border-radius:inherit; }
+.toast--success { border-color: var(--badge__bot,#2d8a48); }
+.toast--danger { border-color: var(--danger,#b93232); }
+.toast--warning { border-color: var(--warning-accent,#c98c1a); }
+.toast__content { background:var(--panel-2,#1e2128); border:1px solid var(--dialog-border,#2b2b31); border-radius:14px; padding:24px 32px 24px 24px; display:flex; flex-direction:column; gap:6px; width:100%; box-sizing:border-box; min-height:100%; }
+.toast__title { margin:0; font-size:14px; font-weight:600; letter-spacing:.2px; display:flex; align-items:center; gap:6px; }
+.toast__message { margin:0; font-size:13px; color:var(--muted,#9aa0b2); line-height:1.45; }
+.toast__close { position:absolute; top:8px; right:8px; width:30px; height:30px; display:inline-grid; place-items:center; background:transparent; border:1px solid transparent; color:var(--muted,#9aa0b2); border-radius:8px; cursor:pointer; opacity:0; pointer-events:none; transition:opacity .15s ease, background-color .15s ease, color .15s ease; }
+.toast:hover .toast__close { opacity:1; pointer-events:auto; }
+.toast__close:hover { background:var(--hover-subtle,#262b33); color:var(--text,#fff); }
+.toast__close:focus-visible { outline:2px solid var(--accent,#6366f1); outline-offset:2px; opacity:1; pointer-events:auto; }
+.toast[data-dismiss="true"] { opacity:0; transform:translateY(6px); pointer-events:none; transition:opacity .25s ease, transform .25s ease; }
+@keyframes toastIn { from { opacity:0; transform:translateY(8px) scale(.98); } to { opacity:1; transform:translateY(0) scale(1); } }
+.toast { animation:toastIn .35s cubic-bezier(.4,.2,.2,1); }
+@media (max-width:640px){
+  .toast-container { right:8px; left:8px; bottom:8px; max-width:none; }
 }
