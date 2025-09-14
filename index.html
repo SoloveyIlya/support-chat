@@ -26,6 +26,30 @@
 </head>
 <body>
   <a class="visually-hidden" href="#mainContent">Перейти к основному содержимому</a>
+  <!-- LOGIN SCREEN (overlay) -->
+  <div id="loginScreen" class="login-screen" aria-hidden="true" hidden>
+    <form id="loginForm" class="login-card" novalidate autocomplete="on">
+      <h1 class="login-card__title">Вход</h1>
+      <p class="login-card__subtitle">Войдите в свой аккаунт</p>
+      <div class="login-card__field-group">
+        <label class="login-card__label" for="loginUsername">Логин</label>
+        <input id="loginUsername" name="username" class="login-card__input" type="text" placeholder="Ваш логин" required autocomplete="username" />
+        <div class="login-card__error" data-error-for="loginUsername"></div>
+      </div>
+      <div class="login-card__field-group">
+        <label class="login-card__label" for="loginPassword">Пароль</label>
+        <input id="loginPassword" name="password" class="login-card__input" type="password" placeholder="••••••••" required autocomplete="current-password" />
+        <div class="login-card__error" data-error-for="loginPassword"></div>
+      </div>
+      <div class="login-card__actions">
+        <button type="submit" class="login-card__btn" id="loginSubmit">
+          <span class="btn__spinner" aria-hidden="true" hidden></span>
+          <span class="login-card__btn-label">Войти</span>
+        </button>
+      </div>
+      <div class="login-card__global-error" id="loginGlobalError" role="alert" hidden></div>
+    </form>
+  </div>
   <div class="shell">
     <!-- ХЕДЕР -->
     <header class="app-header">
@@ -106,7 +130,7 @@
           </div>
         </div>
 
-        <ul class="dialog-list" id="dialogList" role="listbox" aria-label="Активные диалоги">
+  <ul class="dialog-list" id="dialogList" role="listbox" aria-label="Активные диалоги" tabindex="0">
           <!-- Элементы списка рендерятся JS -->
         </ul>
 
@@ -292,6 +316,34 @@
         <button type="button" class="confirm-modal__btn confirm-modal__btn--danger" id="unsubscribeConfirm">
           <span class="btn__spinner" aria-hidden="true" hidden></span>
           <span class="confirm-modal__btn-label">Отменить подписку</span>
+        </button>
+      </footer>
+    </div>
+  </div>
+
+  <!-- MODAL: Logout Confirmation -->
+  <div class="confirm-modal confirm-modal--sm" id="logoutModal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="logoutTitle">
+    <div class="confirm-modal__dialog" role="document">
+      <header class="confirm-modal__header">
+        <svg class="confirm-modal__icon-svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+          <polyline points="16 17 21 12 16 7" />
+          <line x1="21" x2="9" y1="12" y2="12" />
+        </svg>
+        <h2 class="confirm-modal__title" id="logoutTitle">Подтверждение выхода</h2>
+        <button class="confirm-modal__close" id="logoutClose" type="button" aria-label="Закрыть окно">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </header>
+      <div class="confirm-modal__body">
+        <p class="confirm-modal__text">Вы действительно хотите выйти из аккаунта?</p>
+        <p class="confirm-modal__note">После выхода потребуется повторный вход для продолжения работы.</p>
+      </div>
+      <footer class="confirm-modal__footer">
+        <button type="button" class="confirm-modal__btn" id="logoutCancel">Отмена</button>
+        <button type="button" class="confirm-modal__btn confirm-modal__btn--danger" id="logoutConfirm">
+          <span class="btn__spinner" aria-hidden="true" hidden></span>
+          <span class="confirm-modal__btn-label">Выйти</span>
         </button>
       </footer>
     </div>

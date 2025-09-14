@@ -1591,6 +1591,7 @@ button { font: inherit; color: inherit; }
 .confirm-modal { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.55); z-index:1200; padding:40px 24px; backdrop-filter: blur(4px); opacity:0; pointer-events:none; transition: opacity .18s ease; }
 .confirm-modal[aria-hidden="false"]{ opacity:1; pointer-events:auto; }
 .confirm-modal__dialog { width:100%; max-width:480px; background:var(--panel-1, var(--panel)); border:1px solid var(--border); border-radius:16px; box-shadow:0 12px 40px -4px rgba(0,0,0,.55); display:flex; flex-direction:column; animation:fadeIn .18s ease; }
+.confirm-modal--sm .confirm-modal__dialog { max-width:400px; }
 .confirm-modal__header { display:flex; align-items:center; gap:12px; padding:20px 24px 12px; position:relative; }
 .confirm-modal__icon-svg { width:24px; height:24px; display:block; }
 .confirm-modal__title { margin:0; font-size:18px; font-weight:600; line-height:1.25; }
@@ -1608,6 +1609,7 @@ button { font: inherit; color: inherit; }
 .confirm-modal__btn { background:var(--panel-2); border:1px solid var(--border); color:var(--text); font:14px/1.2 system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif; padding:10px 18px; border-radius:10px; cursor:pointer; min-width:120px; display:inline-flex; gap:10px; align-items:center; justify-content:center; position:relative; font-weight:500; }
 .confirm-modal__btn:hover:not(.confirm-modal__btn--danger) { background:var(--hover-subtle); }
 #unsubscribeCancel.confirm-modal__btn:hover { background:var(--accent); color:var(--white); transition:background-color .15s ease, color .15s ease; }
+#logoutCancel.confirm-modal__btn:hover { background:var(--accent); color:var(--white); transition:background-color .15s ease, color .15s ease; }
 .confirm-modal__btn:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
 .confirm-modal__btn--danger { background:var(--danger); color:#fff; border-color:var(--danger); font-weight:600; }
 /* Без визуального эффекта при hover для опасной кнопки */
@@ -1617,3 +1619,105 @@ button { font: inherit; color: inherit; }
 @keyframes spin { to { transform: rotate(360deg); } }
 /* Дополнительная переменная цвета для предупреждающей иконки модалки */
 :root { --warning-accent: #f97316; }
+
+/* ====== LOGIN SCREEN ====== */
+.login-screen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  overflow-y: auto;
+  padding: 80px 16px 40px;
+  background: #131416; /* более глубокий фон чем var(--bg) для отделения */
+  z-index: 4000;
+}
+.login-screen[hidden]{ display:none !important; }
+
+.login-card {
+  width: 100%;
+  max-width: 460px; /* как на макете — умеренная ширина */
+  background: #18191c;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 32px 40px 36px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  box-shadow: 0 4px 24px -4px rgba(0,0,0,.55), 0 2px 8px -2px rgba(0,0,0,.45);
+}
+
+.login-card__title {
+  margin: 0 0 2px;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: .2px;
+}
+
+.login-card__subtitle {
+  margin: 0 0 4px;
+  font-size: 13px;
+  color: var(--text-muted-alt);
+}
+
+.login-card__field-group { display: flex; flex-direction: column; gap: 6px; }
+.login-card__label { font-size: 12px; font-weight: 500; color: var(--text-muted-alt); }
+
+.login-card__input {
+  background: #121315;
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  padding: 11px 14px;
+  font: 14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
+  color: var(--text);
+  transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease;
+}
+.login-card__input::placeholder { color: var(--input-placeholder); }
+.login-card__input:focus { outline: none; border-color: var(--accent); background:#15171a; }
+.login-card__input:invalid[aria-invalid="true"] { border-color: var(--danger-bright); }
+
+.login-card__error { min-height: 15px; font-size: 11px; color: var(--danger-bright); }
+
+.login-card__actions { margin-top: 4px; }
+.login-card__btn {
+  width: 100%;
+  background: var(--accent);
+  color: #fff;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  padding: 14px 18px;
+  font: 14px/1 system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: background-color .15s ease, filter .15s ease, box-shadow .15s ease;
+}
+.login-card__btn:hover { background: var(--accent-hover); }
+.login-card__btn:active { filter: brightness(.92); }
+.login-card__btn:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.login-card__btn[disabled] { opacity:.6; cursor: default; }
+.login-card__btn .btn__spinner { width:16px; height:16px; border-width:2px; }
+
+.login-card__global-error {
+  background: rgba(220,53,69,0.12);
+  border:1px solid var(--danger-bright);
+  color: var(--danger-bright);
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+/* Удаляем нежелательный outline при автопрограммном фокусе на списке диалогов */
+#dialogList:focus { outline: none; }
+#dialogList:focus-visible { outline: none; }
+
+html.login-active body > .shell { filter: blur(2px) brightness(.6); pointer-events:none; user-select:none; }
+html.login-active #loginScreen { display:flex; }
+
+@media (max-width: 520px) {
+  .login-card { padding: 28px 22px 30px; border-radius: 14px; }
+}

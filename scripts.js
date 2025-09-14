@@ -1,3 +1,230 @@
+/* ====== Auth / Login Screen Module ======
+   Архитектурные принципы:
+   - Не вмешиваемся в существующий ActiveDialogsApp: просто скрываем .shell пока нет токена.
+   - Изоляция через немедленное выполнение и экспорт window.Auth (минимально).
+   - Храним «токен» в localStorage (mock). Для реальной интеграции заменить loginRequest().
+*/
+(function AuthController(){
+  const STORAGE_KEY = 'authToken';
+  const loginScreen = document.getElementById('loginScreen');
+  const loginForm = document.getElementById('loginForm');
+  const shell = document.querySelector('body > .shell');
+  if(!loginScreen || !loginForm || !shell) return; // fail-safe
+
+  const submitBtn = document.getElementById('loginSubmit');
+  const globalError = document.getElementById('loginGlobalError');
+  const usernameInput = document.getElementById('loginUsername');
+  const passwordInput = document.getElementById('loginPassword');
+
+  // ====== STATE MACHINE ======
+  // phases: unauthenticated | auth-loading | auth-failed | authenticated
+  let authPhase = 'unauthenticated';
+  let lastAuthError = null;
+
+  function setAuthPhase(phase, { error = null } = {}){
+    if(authPhase === phase && error === lastAuthError) return;
+    authPhase = phase; lastAuthError = error;
+    const root = document.documentElement;
+    // снимаем старые классы фаз
+    root.classList.remove('auth-phase--unauthenticated','auth-phase--auth-loading','auth-phase--auth-failed','auth-phase--authenticated');
+    root.classList.add(`auth-phase--${phase}`);
+    // визуальное применение
+    applyPhase();
+    // событие
+    window.dispatchEvent(new CustomEvent('auth:change', { detail:{ phase: authPhase, error:lastAuthError }}));
+  }
+
+  function applyPhase(){
+    const isLoading = authPhase === 'auth-loading';
+    const isAuthed = authPhase === 'authenticated';
+    if(isAuthed){
+      loginScreen.hidden = true;
+      shell.removeAttribute('inert');
+      shell.style.pointerEvents = '';
+    } else {
+      loginScreen.hidden = false;
+      // блокируем фон только один раз если ещё не установлен inert
+      if(!shell.hasAttribute('inert')) shell.setAttribute('inert','');
+      shell.style.pointerEvents = 'none';
+    }
+    if(submitBtn){
+      submitBtn.disabled = isLoading || !isFormValid();
+      submitBtn.classList.toggle('is-ready', !submitBtn.disabled && !isLoading && !isAuthed);
+    }
+    [usernameInput, passwordInput].forEach(inp=>{
+      if(!inp) return;
+      if(isLoading){ inp.setAttribute('disabled',''); }
+      else { inp.removeAttribute('disabled'); }
+    });
+    if(globalError){
+      if(authPhase === 'auth-failed' && lastAuthError){
+        globalError.hidden = false; globalError.textContent = lastAuthError;
+      } else {
+        globalError.hidden = true; globalError.textContent = '';
+      }
+    }
+  }
+
+  function isAuthed(){ return !!localStorage.getItem(STORAGE_KEY); }
+
+  function showLogin(){
+    document.documentElement.classList.add('login-active');
+    setAuthPhase('unauthenticated');
+    setTimeout(()=> usernameInput?.focus(), 30);
+    // Fallbackы на случай гонок рендера / стилей
+    requestAnimationFrame(()=>{
+      if(document.documentElement.classList.contains('login-active') && loginScreen.hidden){
+        console.warn('[Auth] rf fallback: force show login');
+        loginScreen.hidden = false;
+      }
+    });
+    setTimeout(()=>{
+      if(document.documentElement.classList.contains('login-active') && loginScreen.hidden){
+        console.warn('[Auth] timeout fallback: force show login');
+        loginScreen.hidden = false;
+      }
+    },120);
+  }
+
+  function showApp(){
+    document.documentElement.classList.remove('login-active');
+    setAuthPhase('authenticated');
+    // Фокус не ставим явно, чтобы не появлялась рамка вокруг списка
+  }
+
+  function setLoading(flag){
+    const spinner = submitBtn?.querySelector('.btn__spinner');
+    if(spinner) spinner.hidden = !flag;
+    setAuthPhase(flag ? 'auth-loading' : (isAuthed()? 'authenticated':'unauthenticated'));
+  }
+
+  function setFieldError(id,msg){
+    const el = loginForm.querySelector(`.login-card__error[data-error-for="${id}"]`);
+    if(el) el.textContent = msg || '';
+    const input = document.getElementById(id);
+    if(input){
+      if(msg) input.setAttribute('aria-invalid','true'); else input.removeAttribute('aria-invalid');
+    }
+  }
+
+  function clearErrors(){
+    loginForm.querySelectorAll('.login-card__error').forEach(e=>e.textContent='');
+    [ 'loginUsername','loginPassword' ].forEach(id=>document.getElementById(id)?.removeAttribute('aria-invalid'));
+    if(globalError){ globalError.hidden = true; globalError.textContent=''; }
+    lastAuthError = null;
+  }
+
+  // ====== VALIDATION ======
+  const USERNAME_RE = /^[a-zA-Z0-9._-]+$/;
+  function validateUsername(raw){
+    const value = raw.trim();
+    if(!value) return 'Введите логин';
+    if(value.length < 3) return 'Минимум 3 символа';
+    if(!USERNAME_RE.test(value)) return 'Допустимы лат. буквы, цифры, . _ -';
+    return null;
+  }
+  function validatePassword(raw){
+    if(!raw) return 'Введите пароль';
+    if(raw.length < 6) return 'Минимум 6 символов';
+    return null;
+  }
+  function isFormValid(){
+    const uErr = validateUsername(usernameInput?.value || '');
+    const pErr = validatePassword(passwordInput?.value || '');
+    return !uErr && !pErr;
+  }
+
+  function runLiveValidation(){
+    if(!usernameInput || !passwordInput) return;
+    const uErr = validateUsername(usernameInput.value);
+    const pErr = validatePassword(passwordInput.value);
+    setFieldError('loginUsername', uErr || '');
+    setFieldError('loginPassword', pErr || '');
+    // Не показываем глобальную ошибку от live-валидации
+    if(submitBtn && authPhase !== 'auth-loading' && authPhase !== 'authenticated'){
+      submitBtn.disabled = !!(uErr || pErr);
+      submitBtn.classList.toggle('is-ready', !submitBtn.disabled);
+    }
+  }
+
+  usernameInput?.addEventListener('input', runLiveValidation);
+  passwordInput?.addEventListener('input', runLiveValidation);
+
+  async function loginRequest(username,password){
+    console.log('[Auth] loginRequest start', { uLen: username.length, pLen: password.length });
+    // MOCK: имитация реального запроса
+    await new Promise(r=>setTimeout(r,400));
+    // Успех если форма валидна (строгая валидация)
+    if(!validateUsername(username) && !validatePassword(password)){
+      const tokenObj = { token: 'mock-'+Date.now() };
+      console.log('[Auth] loginRequest success', tokenObj);
+      return tokenObj;
+    }
+    console.log('[Auth] loginRequest fail (empty field)');
+    throw new Error('Введите логин и пароль');
+  }
+
+  loginForm.addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    clearErrors();
+    // Получаем элементы по id (name у полей другие, поэтому прямой доступ loginForm.loginUsername не работает)
+    const usernameEl = document.getElementById('loginUsername');
+    const passwordEl = document.getElementById('loginPassword');
+    const username = usernameEl ? usernameEl.value.trim() : '';
+    const password = passwordEl ? passwordEl.value : '';
+    const userErr = validateUsername(username);
+    const passErr = validatePassword(password);
+    if(userErr) setFieldError('loginUsername', userErr);
+    if(passErr) setFieldError('loginPassword', passErr);
+    if(userErr || passErr){
+      console.log('[Auth] validation blocked submit', { userErr, passErr });
+      // фокус на первое ошибочное поле
+      if(userErr) usernameInput?.focus(); else if(passErr) passwordInput?.focus();
+      return;
+    }
+    setLoading(true);
+    try {
+      const { token } = await loginRequest(username,password);
+      localStorage.setItem(STORAGE_KEY, token);
+      console.log('[Auth] token stored, calling showApp');
+      showApp();
+    } catch(err){
+      console.warn('[Auth] login error', err);
+      if(globalError){ globalError.hidden = false; globalError.textContent = err.message || 'Ошибка входа'; }
+      setAuthPhase('auth-failed', { error: err.message || 'Ошибка входа' });
+      // DEV fallback: если хэш #forceLogin — вход всё равно
+      if(location.hash === '#forceLogin'){
+        console.log('[Auth] #forceLogin fallback engaged');
+        localStorage.setItem(STORAGE_KEY, 'forced-'+Date.now());
+        showApp();
+      }
+    } finally { setLoading(false); }
+  });
+
+  const logoutBtn = document.getElementById('btnLogout');
+  if(logoutBtn){
+    logoutBtn.addEventListener('click', ()=>{
+      // Теперь выход подтверждается модалкой LogoutConfirm
+      if(window.LogoutConfirm && typeof window.LogoutConfirm.open === 'function'){
+        window.LogoutConfirm.open({ trigger:'headerBtn' });
+      } else {
+        // Fallback: если модуль не инициализировался, выполняем немедленный logout
+        performLogout();
+      }
+    });
+  }
+
+  function performLogout(){
+    try { localStorage.removeItem(STORAGE_KEY); } catch(_){ /* noop */ }
+    showLogin();
+  }
+
+  // INIT
+  if(isAuthed()) { console.log('[Auth] already authed, showing app'); showApp(); }
+  else { console.log('[Auth] not authed, showing login'); showLogin(); }
+
+  window.Auth = { showLogin, showApp, isAuthed, getPhase: ()=>authPhase, performLogout };
+})();
 /*
   ====== UI Модуль: Активные диалоги ======
   Назначение:
@@ -1946,6 +2173,107 @@
 
   // Старт
   init();
+})();
+
+/* ====== Logout Confirmation Modal Module ======
+   Назначение: показывать небольшую модалку подтверждения выхода вместо мгновенного logout.
+   Архитектура аналогична UnsubscribeModal, но без блока ошибок и дополнительных данных.
+   API: window.LogoutConfirm.open({trigger}) / close().
+*/
+(function(){
+  'use strict';
+  const modal = document.getElementById('logoutModal');
+  if(!modal){ console.warn('[LogoutConfirm] modal element not found'); return; }
+  const el = {
+    modal,
+    close: document.getElementById('logoutClose'),
+    cancel: document.getElementById('logoutCancel'),
+    confirm: document.getElementById('logoutConfirm'),
+    spinner: modal.querySelector('.btn__spinner')
+  };
+  const state = { open:false, lastTrigger:null, lastActiveElement:null, loading:false };
+
+  function setAriaHidden(root, hidden){ root.setAttribute('aria-hidden', hidden? 'true':'false'); }
+
+  function trapFocus(e){
+    if(!state.open || e.key !== 'Tab') return;
+    const focusables = [el.cancel, el.confirm];
+    const idx = focusables.indexOf(document.activeElement);
+    if(e.shiftKey){
+      if(idx <= 0){ e.preventDefault(); focusables[focusables.length-1].focus(); }
+    } else {
+      if(idx === focusables.length-1){ e.preventDefault(); focusables[0].focus(); }
+    }
+  }
+
+  function open({ trigger = null } = {}){
+    if(state.open) return;
+    state.open = true; state.lastTrigger = trigger; state.lastActiveElement = document.activeElement;
+    setAriaHidden(el.modal, false);
+    document.body.style.overflow = 'hidden';
+    requestAnimationFrame(()=> el.cancel.focus());
+    document.addEventListener('keydown', onKeydown, true);
+    el.modal.addEventListener('click', onOverlayClick);
+  }
+
+  function close({ returnFocus = true } = {}){
+    if(!state.open) return;
+    state.open = false; state.loading = false;
+    setLoading(false);
+    setAriaHidden(el.modal, true);
+    document.body.style.overflow = '';
+    document.removeEventListener('keydown', onKeydown, true);
+    el.modal.removeEventListener('click', onOverlayClick);
+    if(returnFocus && state.lastActiveElement && typeof state.lastActiveElement.focus === 'function'){
+      try { state.lastActiveElement.focus(); } catch(_){ /* noop */ }
+    }
+  }
+
+  function setLoading(flag){
+    state.loading = flag;
+    if(flag){
+      el.confirm.setAttribute('disabled','disabled');
+      if(el.spinner) el.spinner.hidden = false;
+    } else {
+      el.confirm.removeAttribute('disabled');
+      if(el.spinner) el.spinner.hidden = true;
+    }
+  }
+
+  async function submit(){
+    if(state.loading) return;
+    setLoading(true);
+    try {
+      // Небольшая искусственная задержка для UX (ощущение действия)
+      await new Promise(r=>setTimeout(r, 250));
+      if(window.Auth && typeof window.Auth.performLogout === 'function'){
+        window.Auth.performLogout();
+      } else {
+        // Fallback если Auth не инициализирован
+        try { localStorage.removeItem('authToken'); } catch(_){ /* noop */ }
+        console.warn('[LogoutConfirm] Auth.performLogout отсутствует, применён fallback');
+        if(window.Auth && typeof window.Auth.showLogin === 'function') window.Auth.showLogin();
+      }
+      // Не возвращаем фокус к кнопке выхода, так как появляется экран логина.
+      close({ returnFocus:false });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function onKeydown(e){
+    if(e.key === 'Escape'){ e.preventDefault(); close({ returnFocus:true }); }
+    if(e.key === 'Tab') trapFocus(e);
+    if((e.key === 'Enter' || e.key === ' ') && document.activeElement === el.confirm){ e.preventDefault(); submit(); }
+  }
+
+  function onOverlayClick(e){ if(e.target === el.modal) close({ returnFocus:true }); }
+
+  el.close.addEventListener('click', ()=> close({ returnFocus:true }));
+  el.cancel.addEventListener('click', ()=> close({ returnFocus:true }));
+  el.confirm.addEventListener('click', submit);
+
+  window.LogoutConfirm = { open, close };
 })();
 
 /* ====== Unsubscribe Confirmation Modal Module ======
