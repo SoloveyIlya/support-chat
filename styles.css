@@ -901,6 +901,430 @@ button { font: inherit; color: inherit; }
 /* Нижняя строка подсказок */
 .chat__composer-bottom { display:flex; align-items:center; justify-content:space-between; gap:16px; }
 .chat__composer-hint { font-size:12px; color:var(--muted); display:flex; gap:12px; flex-wrap:wrap; }
+
+/* ====== TEMPLATES MODAL ====== */
+.templates-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  transition: none; /* убрали анимации, чтобы не мигал текст */
+}
+
+.templates-modal[aria-hidden="false"] {
+  display: flex;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.templates-modal__dialog {
+  background: #121216; /* Обновлено по новому требованию */
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  width: 90vw;
+  max-width: 720px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.templates-modal__header {
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.templates-modal__title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.templates-modal__title-icon {
+  width: 24px;
+  height: 24px;
+  filter: brightness(0) invert(1);
+}
+
+.templates-modal__close {
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.templates-modal__close:hover {
+  background: var(--hover-subtle);
+  color: var(--text);
+}
+
+.templates-modal__close:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Область вкладок без верх/низ разделителей, растянута по ширине */
+.templates-modal__tabs {
+  display: flex;
+  padding: 8px 24px 0; /* уменьшен верхний отступ после header */
+}
+
+/* Таблетка: растягиваем на всю ширину; внутренние отступы формируют скруглённый блок */
+.templates-modal__tabs-container {
+  display: flex;
+  width: 100%;
+  background: #2b2b31; /* обновлённый фон таблетки */
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 4px 6px;
+  gap: 4px;
+}
+
+.templates-modal__tab {
+  flex: 1;
+  padding: 8px 18px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 8px;
+  position: relative;
+  z-index: 2;
+  white-space: nowrap;
+  min-width: 120px;
+  display: flex; /* выравниваем иконку и текст в одну линию */
+  align-items: center; /* вертикальное выравнивание */
+  justify-content: center; /* центрирование содержимого */
+  gap: 6px; /* контролируем расстояние между иконкой и текстом */
+}
+
+/* Hover полностью убран: никаких визуальных изменений для неактивных вкладок */
+
+.templates-modal__tab[aria-selected="true"] {
+  color: var(--white);
+  background: #121216; /* требуемый фон активной вкладки */
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
+}
+
+.templates-modal__tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Иконки во вкладках */
+.templates-modal__tab-icon { width:16px; height:16px; flex-shrink:0; display:block; }
+
+.templates-modal__content {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: #121216; /* общий фон контента */
+}
+
+.templates-modal__tab-panel {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px;
+  display: none;
+}
+
+.templates-modal__tab-panel[aria-hidden="false"] {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ====== TEMPLATES LIST (First Tab) ====== */
+.templates-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #121216;
+}
+
+.template-item {
+  background: #121216;
+  border: 1px solid #2b2b31;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+  cursor: pointer; /* указатель при наведении */
+}
+
+/* Hover эффекты для элементов списка шаблонов отключены по требованию */
+.template-item:hover {
+  background: #24242980; /* новый цвет полупрозрачной подсветки */
+  border-color: #2b2b31; /* границу не меняем (можно позднее убрать если не нужна) */
+}
+
+.template-item__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.template-item__title {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  word-wrap: break-word;
+}
+
+.template-item__text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.template-item__actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.template-action-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  transition: background-color 0.15s ease;
+}
+
+.template-action-btn:hover {
+  background: var(--accent);
+}
+
+.template-action-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Цвета иконок по умолчанию */
+.template-action-btn--copy,
+.template-action-btn--edit {
+  color: var(--white);
+}
+
+.template-action-btn--delete {
+  color: #ef4444;
+}
+
+.templates-empty {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.templates-empty__title {
+  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.templates-empty__subtitle {
+  margin: 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+/* ====== TEMPLATE FORM (Second Tab) ====== */
+.template-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.template-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.template-form__label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.template-form__input {
+  background: #121216; /* унификация с контейнером */
+  border: 1px solid #2b2b31;
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 14px;
+  color: var(--text);
+  transition: border-color 0.15s ease;
+}
+
+.template-form__input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.template-form__input::placeholder {
+  color: var(--input-placeholder);
+}
+
+.template-form__textarea {
+  background: #121216;
+  border: 1px solid #2b2b31;
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 14px;
+  color: var(--text);
+  font-family: inherit;
+  resize: vertical;
+  min-height: 120px;
+  line-height: 1.4;
+  transition: border-color 0.15s ease;
+}
+
+.template-form__textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.template-form__textarea::placeholder {
+  color: var(--input-placeholder);
+}
+
+.template-form__actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-start; /* выравнивание кнопок влево */
+}
+
+.template-form__btn {
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.template-form__btn--secondary {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--muted);
+}
+.template-form__btn--secondary:hover,
+.template-form__btn--secondary:focus-visible {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.template-form__btn--primary {
+  background: var(--accent);
+  color: var(--white);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.template-form__btn--primary:hover {
+  filter: brightness(1.05);
+}
+
+.template-form__btn--primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.template-form__btn-icon {
+  width: 16px;
+  height: 16px;
+  display: inline-block;
+}
+
+.template-form__btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ====== TEMPLATES MODAL DIVIDER ====== */
+.templates-modal__divider {
+  position: relative;
+  height: 12px; /* визуальный отступ + линия внутри */
+  background: #121216; /* фон всего блока */
+  margin: 8px 0 4px 0; /* обновлённые отступы */
+}
+.templates-modal__divider::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: #2b2b31; /* сама линия */
+  transform: translateY(-50%);
+}
+
+/* ====== TEMPLATES MODAL HINT ====== */
+/* Заменено на shortcuts блок */
+.templates-modal__shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 4px 24px 16px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.templates-modal__shortcut-item { display:flex; align-items:center; gap:6px; }
+.templates-modal__kbd {
+  background: var(--panel-2);
+  border: 1px solid #2b2b31;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+  line-height: 1.2;
+}
+.templates-modal__shortcut-label { color: var(--muted); }
 .chat__composer-hint { font-size:12px; color:#97a3b4; display:flex; gap:12px; flex-wrap:wrap; }
 
 /* ====== Pending attachments (локальные, до отправки) ====== */

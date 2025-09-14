@@ -154,6 +154,95 @@
     </div>
   </div>
 
+  <!-- MODAL: Templates -->
+  <div class="templates-modal" id="templatesModal" aria-hidden="true" role="dialog" aria-labelledby="templatesModalTitle" aria-modal="true">
+    <div class="templates-modal__dialog">
+      <header class="templates-modal__header">
+        <h2 class="templates-modal__title" id="templatesModalTitle">
+          <img src="images/templates.svg" alt="" class="templates-modal__title-icon" aria-hidden="true" />
+          Шаблоны ответов
+        </h2>
+        <button class="templates-modal__close" id="templatesModalClose" type="button" aria-label="Закрыть модальное окно">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </header>
+
+      <div class="templates-modal__tabs">
+        <div class="templates-modal__tabs-container" role="tablist" aria-label="Вкладки шаблонов">
+          <button class="templates-modal__tab" id="templatesTab" role="tab" 
+                  aria-selected="true" aria-controls="templatesPanel" tabindex="0">
+            <svg class="templates-modal__tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
+              <path d="M14 2v4a2 2 0 0 0 2 2h4" />
+              <path d="M10 9H8" />
+              <path d="M16 13H8" />
+              <path d="M16 17H8" />
+            </svg>
+            <span class="templates-modal__tab-label">Шаблоны (<span id="templatesCount">5</span>)</span>
+          </button>
+          <button class="templates-modal__tab" id="createTab" role="tab" 
+                  aria-selected="false" aria-controls="createPanel" tabindex="-1">
+            <svg class="templates-modal__tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span class="templates-modal__tab-label">Создать</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="templates-modal__content">
+        <!-- Tab 1: Templates List -->
+        <div class="templates-modal__tab-panel" id="templatesPanel" role="tabpanel" 
+             aria-labelledby="templatesTab" aria-hidden="false">
+          <div class="templates-list" id="templatesList">
+            <!-- Templates will be rendered here by JS -->
+          </div>
+          <div class="templates-empty" id="templatesEmpty" hidden>
+            <h3 class="templates-empty__title">Нет шаблонов</h3>
+            <p class="templates-empty__subtitle">Создайте первый шаблон во вкладке «Создать»</p>
+          </div>
+        </div>
+
+        <!-- Tab 2: Create Template -->
+        <div class="templates-modal__tab-panel" id="createPanel" role="tabpanel" 
+             aria-labelledby="createTab" aria-hidden="true">
+          <form class="template-form" id="templateForm">
+            <div class="template-form__field">
+              <label class="template-form__label" for="templateName">Название шаблона</label>
+              <input class="template-form__input" type="text" id="templateName" 
+                     placeholder="Например: Приветствие" maxlength="100" required />
+            </div>
+            
+            <div class="template-form__field">
+              <label class="template-form__label" for="templateText">Текст шаблона</label>
+              <textarea class="template-form__textarea" id="templateText" 
+                        placeholder="Введите текст шаблона..." required></textarea>
+            </div>
+
+            <div class="template-form__actions">
+              <button type="submit" class="template-form__btn template-form__btn--primary" id="templateSave">
+                <img src="images/add.svg" alt="" class="template-form__btn-icon" aria-hidden="true" />
+                <span>Создать шаблон</span>
+              </button>
+              <button type="button" class="template-form__btn template-form__btn--secondary" id="templateCancel">
+                Отмена
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="templates-modal__shortcuts" aria-label="Горячие клавиши шаблонов">
+        <div class="templates-modal__shortcut-item">
+          <kbd class="templates-modal__kbd">Escape</kbd>
+          <span class="templates-modal__shortcut-label">— закрыть окно</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="scripts.js" defer></script>
 </body>
 </html>
