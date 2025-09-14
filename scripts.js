@@ -1,3 +1,230 @@
+/* ====== Auth / Login Screen Module ======
+   Архитектурные принципы:
+   - Не вмешиваемся в существующий ActiveDialogsApp: просто скрываем .shell пока нет токена.
+   - Изоляция через немедленное выполнение и экспорт window.Auth (минимально).
+   - Храним «токен» в localStorage (mock). Для реальной интеграции заменить loginRequest().
+*/
+(function AuthController(){
+  const STORAGE_KEY = 'authToken';
+  const loginScreen = document.getElementById('loginScreen');
+  const loginForm = document.getElementById('loginForm');
+  const shell = document.querySelector('body > .shell');
+  if(!loginScreen || !loginForm || !shell) return; // fail-safe
+
+  const submitBtn = document.getElementById('loginSubmit');
+  const globalError = document.getElementById('loginGlobalError');
+  const usernameInput = document.getElementById('loginUsername');
+  const passwordInput = document.getElementById('loginPassword');
+
+  // ====== STATE MACHINE ======
+  // phases: unauthenticated | auth-loading | auth-failed | authenticated
+  let authPhase = 'unauthenticated';
+  let lastAuthError = null;
+
+  function setAuthPhase(phase, { error = null } = {}){
+    if(authPhase === phase && error === lastAuthError) return;
+    authPhase = phase; lastAuthError = error;
+    const root = document.documentElement;
+    // снимаем старые классы фаз
+    root.classList.remove('auth-phase--unauthenticated','auth-phase--auth-loading','auth-phase--auth-failed','auth-phase--authenticated');
+    root.classList.add(`auth-phase--${phase}`);
+    // визуальное применение
+    applyPhase();
+    // событие
+    window.dispatchEvent(new CustomEvent('auth:change', { detail:{ phase: authPhase, error:lastAuthError }}));
+  }
+
+  function applyPhase(){
+    const isLoading = authPhase === 'auth-loading';
+    const isAuthed = authPhase === 'authenticated';
+    if(isAuthed){
+      loginScreen.hidden = true;
+      shell.removeAttribute('inert');
+      shell.style.pointerEvents = '';
+    } else {
+      loginScreen.hidden = false;
+      // блокируем фон только один раз если ещё не установлен inert
+      if(!shell.hasAttribute('inert')) shell.setAttribute('inert','');
+      shell.style.pointerEvents = 'none';
+    }
+    if(submitBtn){
+      submitBtn.disabled = isLoading || !isFormValid();
+      submitBtn.classList.toggle('is-ready', !submitBtn.disabled && !isLoading && !isAuthed);
+    }
+    [usernameInput, passwordInput].forEach(inp=>{
+      if(!inp) return;
+      if(isLoading){ inp.setAttribute('disabled',''); }
+      else { inp.removeAttribute('disabled'); }
+    });
+    if(globalError){
+      if(authPhase === 'auth-failed' && lastAuthError){
+        globalError.hidden = false; globalError.textContent = lastAuthError;
+      } else {
+        globalError.hidden = true; globalError.textContent = '';
+      }
+    }
+  }
+
+  function isAuthed(){ return !!localStorage.getItem(STORAGE_KEY); }
+
+  function showLogin(){
+    document.documentElement.classList.add('login-active');
+    setAuthPhase('unauthenticated');
+    setTimeout(()=> usernameInput?.focus(), 30);
+    // Fallbackы на случай гонок рендера / стилей
+    requestAnimationFrame(()=>{
+      if(document.documentElement.classList.contains('login-active') && loginScreen.hidden){
+        console.warn('[Auth] rf fallback: force show login');
+        loginScreen.hidden = false;
+      }
+    });
+    setTimeout(()=>{
+      if(document.documentElement.classList.contains('login-active') && loginScreen.hidden){
+        console.warn('[Auth] timeout fallback: force show login');
+        loginScreen.hidden = false;
+      }
+    },120);
+  }
+
+  function showApp(){
+    document.documentElement.classList.remove('login-active');
+    setAuthPhase('authenticated');
+    // Фокус не ставим явно, чтобы не появлялась рамка вокруг списка
+  }
+
+  function setLoading(flag){
+    const spinner = submitBtn?.querySelector('.btn__spinner');
+    if(spinner) spinner.hidden = !flag;
+    setAuthPhase(flag ? 'auth-loading' : (isAuthed()? 'authenticated':'unauthenticated'));
+  }
+
+  function setFieldError(id,msg){
+    const el = loginForm.querySelector(`.login-card__error[data-error-for="${id}"]`);
+    if(el) el.textContent = msg || '';
+    const input = document.getElementById(id);
+    if(input){
+      if(msg) input.setAttribute('aria-invalid','true'); else input.removeAttribute('aria-invalid');
+    }
+  }
+
+  function clearErrors(){
+    loginForm.querySelectorAll('.login-card__error').forEach(e=>e.textContent='');
+    [ 'loginUsername','loginPassword' ].forEach(id=>document.getElementById(id)?.removeAttribute('aria-invalid'));
+    if(globalError){ globalError.hidden = true; globalError.textContent=''; }
+    lastAuthError = null;
+  }
+
+  // ====== VALIDATION ======
+  const USERNAME_RE = /^[a-zA-Z0-9._-]+$/;
+  function validateUsername(raw){
+    const value = raw.trim();
+    if(!value) return 'Введите логин';
+    if(value.length < 3) return 'Минимум 3 символа';
+    if(!USERNAME_RE.test(value)) return 'Допустимы лат. буквы, цифры, . _ -';
+    return null;
+  }
+  function validatePassword(raw){
+    if(!raw) return 'Введите пароль';
+    if(raw.length < 6) return 'Минимум 6 символов';
+    return null;
+  }
+  function isFormValid(){
+    const uErr = validateUsername(usernameInput?.value || '');
+    const pErr = validatePassword(passwordInput?.value || '');
+    return !uErr && !pErr;
+  }
+
+  function runLiveValidation(){
+    if(!usernameInput || !passwordInput) return;
+    const uErr = validateUsername(usernameInput.value);
+    const pErr = validatePassword(passwordInput.value);
+    setFieldError('loginUsername', uErr || '');
+    setFieldError('loginPassword', pErr || '');
+    // Не показываем глобальную ошибку от live-валидации
+    if(submitBtn && authPhase !== 'auth-loading' && authPhase !== 'authenticated'){
+      submitBtn.disabled = !!(uErr || pErr);
+      submitBtn.classList.toggle('is-ready', !submitBtn.disabled);
+    }
+  }
+
+  usernameInput?.addEventListener('input', runLiveValidation);
+  passwordInput?.addEventListener('input', runLiveValidation);
+
+  async function loginRequest(username,password){
+    console.log('[Auth] loginRequest start', { uLen: username.length, pLen: password.length });
+    // MOCK: имитация реального запроса
+    await new Promise(r=>setTimeout(r,400));
+    // Успех если форма валидна (строгая валидация)
+    if(!validateUsername(username) && !validatePassword(password)){
+      const tokenObj = { token: 'mock-'+Date.now() };
+      console.log('[Auth] loginRequest success', tokenObj);
+      return tokenObj;
+    }
+    console.log('[Auth] loginRequest fail (empty field)');
+    throw new Error('Введите логин и пароль');
+  }
+
+  loginForm.addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    clearErrors();
+    // Получаем элементы по id (name у полей другие, поэтому прямой доступ loginForm.loginUsername не работает)
+    const usernameEl = document.getElementById('loginUsername');
+    const passwordEl = document.getElementById('loginPassword');
+    const username = usernameEl ? usernameEl.value.trim() : '';
+    const password = passwordEl ? passwordEl.value : '';
+    const userErr = validateUsername(username);
+    const passErr = validatePassword(password);
+    if(userErr) setFieldError('loginUsername', userErr);
+    if(passErr) setFieldError('loginPassword', passErr);
+    if(userErr || passErr){
+      console.log('[Auth] validation blocked submit', { userErr, passErr });
+      // фокус на первое ошибочное поле
+      if(userErr) usernameInput?.focus(); else if(passErr) passwordInput?.focus();
+      return;
+    }
+    setLoading(true);
+    try {
+      const { token } = await loginRequest(username,password);
+      localStorage.setItem(STORAGE_KEY, token);
+      console.log('[Auth] token stored, calling showApp');
+      showApp();
+    } catch(err){
+      console.warn('[Auth] login error', err);
+      if(globalError){ globalError.hidden = false; globalError.textContent = err.message || 'Ошибка входа'; }
+      setAuthPhase('auth-failed', { error: err.message || 'Ошибка входа' });
+      // DEV fallback: если хэш #forceLogin — вход всё равно
+      if(location.hash === '#forceLogin'){
+        console.log('[Auth] #forceLogin fallback engaged');
+        localStorage.setItem(STORAGE_KEY, 'forced-'+Date.now());
+        showApp();
+      }
+    } finally { setLoading(false); }
+  });
+
+  const logoutBtn = document.getElementById('btnLogout');
+  if(logoutBtn){
+    logoutBtn.addEventListener('click', ()=>{
+      // Теперь выход подтверждается модалкой LogoutConfirm
+      if(window.LogoutConfirm && typeof window.LogoutConfirm.open === 'function'){
+        window.LogoutConfirm.open({ trigger:'headerBtn' });
+      } else {
+        // Fallback: если модуль не инициализировался, выполняем немедленный logout
+        performLogout();
+      }
+    });
+  }
+
+  function performLogout(){
+    try { localStorage.removeItem(STORAGE_KEY); } catch(_){ /* noop */ }
+    showLogin();
+  }
+
+  // INIT
+  if(isAuthed()) { console.log('[Auth] already authed, showing app'); showApp(); }
+  else { console.log('[Auth] not authed, showing login'); showLogin(); }
+
+  window.Auth = { showLogin, showApp, isAuthed, getPhase: ()=>authPhase, performLogout };
+})();
 /*
   ====== UI Модуль: Активные диалоги ======
   Назначение:
@@ -45,6 +272,18 @@
     { id: 25, name: 'user_25', time: '00:50', platform: 'Android 11 • ФРИИ 2.4.7', origin: 'bot' },
   ];
 
+  // Архивные диалоги (демо данные). id > 1000 для избежания коллизий
+  const ARCHIVE_DIALOGS = [
+    { id: 1001, name: 'archived_user_1', time: 'Вчера', platform: 'Android 13 • ФРИИ 1.3.7', origin: 'operator' },
+    { id: 1002, name: 'archived_user_2', time: 'Вчера', platform: 'iOS 16.7 • ФРИИ 2.8.6', origin: 'bot' },
+    { id: 1003, name: 'archived_user_3', time: '2 дн. назад', platform: 'Android 12 • ФРИИ 1.2.1', origin: 'operator' },
+    { id: 1004, name: 'archived_user_4', time: '3 дн. назад', platform: 'iOS 15.4 • ФРИИ 1.1.0', origin: 'bot' },
+    { id: 1005, name: 'archived_user_5', time: '5 дн. назад', platform: 'Android 11 • ФРИИ 2.4.7', origin: 'operator' },
+  ];
+
+  // Флаг ленивого сида архивных сообщений
+  let archiveSeeded = false;
+
   /* ====== Состояние ======
      Единый источник истины для пагинации и выбранного диалога.
   */
@@ -52,6 +291,7 @@
     pageSize: 10,
     currentPage: 1,
     selectedId: null,
+    viewMode: 'active', // 'active' | 'archive'
   };
 
   /* ====== DOM ======
@@ -547,6 +787,391 @@
     console.log('[seedDemoMessages] Attachments summary:', { inlineImage: inlineImageCount, file: fileCount });
   }
 
+  // Архив: сид сообщений (ленивый). Используем более "исторические" timestamps.
+  function seedArchiveMessages(){
+    if(archiveSeeded) return;
+    archiveSeeded = true;
+    const now = Date.now();
+    const day = 24 * 60 * 60 * 1000;
+    const sampleClient = [
+      'Здравствуйте, вопрос был решён, спасибо.',
+      'Подтверждаю закрытие обращения.',
+      'Информация получила подтверждение, можно архивировать.',
+      'Ошибок больше не наблюдаю — тикет можно завершить.',
+      'Всё работает стабильно, благодарю.'
+    ];
+    const sampleAgent = [
+      'Рады были помочь! Обращайтесь снова при необходимости.',
+      'Закрываю обращение. Хорошего дня!',
+      'Отлично, тогда архивируем тикет.',
+      'Спасибо за подтверждение. Завершаю диалог.',
+      'Всегда рады помочь!'
+    ];
+    for(const dlg of ARCHIVE_DIALOGS){
+      const base = now - (dlg.id - 1000) * day; // сдвиг по дням назад
+      const msgs = [
+        { id: `a${dlg.id}m1`, dialogId: dlg.id, author: 'client', text: sampleClient[(dlg.id)%sampleClient.length], createdAt: new Date(base - 6*3600*1000).toISOString(), status:'sent' },
+        { id: `a${dlg.id}m2`, dialogId: dlg.id, author: dlg.origin === 'bot' ? 'bot':'operator', text: sampleAgent[(dlg.id)%sampleAgent.length], createdAt: new Date(base - 5.5*3600*1000).toISOString(), status:'sent', attachments: (dlg.id % 2 === 0) ? [ { id:`a${dlg.id}f1`, name:`summary-${dlg.id}.pdf`, size:'180 KB', contentType:'application/pdf', displayHint:'file' } ] : undefined },
+        { id: `a${dlg.id}m3`, dialogId: dlg.id, author: 'client', text: 'Подтверждаю закрытие и отсутствие проблем.', createdAt: new Date(base - 5*3600*1000).toISOString(), status:'sent' },
+        { id: `a${dlg.id}m4`, dialogId: dlg.id, author: dlg.origin === 'bot' ? 'bot':'operator', text: 'Диалог переведён в архив.', createdAt: new Date(base - 4.5*3600*1000).toISOString(), status:'sent', attachments: (dlg.id % 3 === 0) ? [ { id:`a${dlg.id}img`, name:`final-${dlg.id}.png`, size:'90 KB', contentType:'image/png', url:`https://picsum.photos/seed/arch${dlg.id}/260/160`, displayHint:'inline-image' } ] : undefined }
+      ];
+      MessageStore.ingestBatch(dlg.id, msgs, { position:'append' });
+    }
+    console.log('[seedArchiveMessages] seeded for', ARCHIVE_DIALOGS.length, 'dialogs');
+  }
+
+  /* ====== Templates Store ======
+     Хранилище шаблонов ответов с поддержкой CRUD операций.
+  */
+  const TemplatesStore = (() => {
+    const MOCK_TEMPLATES = [
+      {
+        id: 1,
+        name: 'Приветствие',
+        text: 'Здравствуйте! Я оператор технической поддержки. Готов помочь вам решить возникшую проблему.'
+      },
+      {
+        id: 2,
+        name: 'Перезапуск приложения',
+        text: 'Попробуйте полностью закрыть приложение и запустить его заново. Это поможет решить большинство проблем.'
+      },
+      {
+        id: 3,
+        name: 'Проверка интернета',
+        text: 'Пожалуйста, проверьте стабильность интернет-соединения и повторите попытку.'
+      },
+      {
+        id: 4,
+        name: 'Обновление приложения',
+        text: 'Рекомендую обновить приложение до последней версии. Обновления содержат исправления известных ошибок.'
+      },
+      {
+        id: 5,
+        name: 'Завершение диалога',
+        text: 'Если ваша проблема решена, диалог можно завершить. Спасибо за обращение! Хорошего дня!'
+      }
+    ];
+
+    let templates = [...MOCK_TEMPLATES];
+    let nextId = 6;
+    const listeners = new Set();
+
+    function notifyListeners() {
+      listeners.forEach(fn => {
+        try { fn(); } catch (e) { console.error('[TemplatesStore] listener error:', e); }
+      });
+    }
+
+    return {
+      getAll() { return [...templates]; },
+      
+      getById(id) { return templates.find(t => t.id === id); },
+      
+      create(name, text) {
+        const template = { id: nextId++, name: name.trim(), text: text.trim() };
+        templates.push(template);
+        notifyListeners();
+        return template;
+      },
+      
+      update(id, name, text) {
+        const template = templates.find(t => t.id === id);
+        if (template) {
+          template.name = name.trim();
+          template.text = text.trim();
+          notifyListeners();
+          return template;
+        }
+        return null;
+      },
+      
+      delete(id) {
+        const index = templates.findIndex(t => t.id === id);
+        if (index !== -1) {
+          const deleted = templates.splice(index, 1)[0];
+          notifyListeners();
+          return deleted;
+        }
+        return null;
+      },
+      
+      subscribe(fn) { listeners.add(fn); },
+      unsubscribe(fn) { listeners.delete(fn); }
+    };
+  })();
+
+  /* ====== Templates Modal ======
+     Модальное окно для работы с шаблонами ответов.
+  */
+  const TemplatesModal = (() => {
+    let modal, templatesTab, createTab, templatesPanel, createPanel, templatesList, templatesCount, templatesEmpty;
+    let templateForm, templateName, templateText, templateCancel, templateSave;
+    let currentEditingId = null;
+
+    function ensureElements() {
+      if (modal) return;
+      
+      modal = document.getElementById('templatesModal');
+      templatesTab = document.getElementById('templatesTab');
+      createTab = document.getElementById('createTab');
+      templatesPanel = document.getElementById('templatesPanel');
+      createPanel = document.getElementById('createPanel');
+      templatesList = document.getElementById('templatesList');
+      templatesCount = document.getElementById('templatesCount');
+      templatesEmpty = document.getElementById('templatesEmpty');
+      
+      templateForm = document.getElementById('templateForm');
+      templateName = document.getElementById('templateName');
+      templateText = document.getElementById('templateText');
+      templateCancel = document.getElementById('templateCancel');
+      templateSave = document.getElementById('templateSave');
+
+  // Инициализация disabled состояния кнопки сохранения
+  updateSaveButtonState();
+
+      setupEventListeners();
+      TemplatesStore.subscribe(renderTemplatesList);
+      renderTemplatesList();
+    }
+
+    function setupEventListeners() {
+      // Закрытие модального окна
+      const closeBtn = document.getElementById('templatesModalClose');
+      closeBtn.addEventListener('click', hide);
+      
+      // Закрытие по ESC и клику на overlay
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) hide();
+      });
+      
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal.getAttribute('aria-hidden') === 'false') {
+          hide();
+        }
+      });
+
+      // Переключение вкладок
+      templatesTab.addEventListener('click', () => switchTab('templates'));
+      createTab.addEventListener('click', () => switchTab('create'));
+
+      // Форма создания/редактирования шаблона
+      templateForm.addEventListener('submit', handleFormSubmit);
+      templateCancel.addEventListener('click', () => switchTab('templates'));
+  // Отслеживание ввода в полях для управления disabled состоянием
+  templateName.addEventListener('input', updateSaveButtonState);
+  templateText.addEventListener('input', updateSaveButtonState);
+      
+      // Делегирование событий для кнопок действий шаблонов
+      templatesList.addEventListener('click', handleTemplateAction);
+      // Клик по самому элементу шаблона: вставить текст и закрыть модалку
+      templatesList.addEventListener('click', (e) => {
+        const item = e.target.closest('.template-item');
+        if (!item) return;
+        // Если клик был по кнопке действия, обработку отдаём handleTemplateAction
+        if (e.target.closest('[data-action]')) return;
+        const id = parseInt(item.getAttribute('data-template-id'));
+        const template = TemplatesStore.getById(id);
+        if (!template) return;
+        const input = document.getElementById('chatInput');
+        if (input) {
+          // Вставляем текст (заменяем или добавляем перенос?) — используем добавление с разделителем
+          const append = template.text;
+          const hasValue = input.value.trim().length > 0;
+          input.value = hasValue ? input.value + (input.value.endsWith('\n') ? '' : '\n') + append : append;
+          input.focus();
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        hide();
+      });
+    }
+
+    function show() {
+      ensureElements();
+      setAriaHidden(modal, false);
+      modal.focus();
+      switchTab('templates');
+    }
+
+    function hide() {
+      if (!modal) return;
+      setAriaHidden(modal, true);
+      resetForm();
+    }
+
+    function switchTab(tabName) {
+      if (tabName === 'templates') {
+        templatesTab.setAttribute('aria-selected', 'true');
+        templatesTab.tabIndex = 0;
+        createTab.setAttribute('aria-selected', 'false');
+        createTab.tabIndex = -1;
+        
+        setAriaHidden(templatesPanel, false);
+        setAriaHidden(createPanel, true);
+        
+        resetForm();
+      } else if (tabName === 'create') {
+        templatesTab.setAttribute('aria-selected', 'false');
+        templatesTab.tabIndex = -1;
+        createTab.setAttribute('aria-selected', 'true');
+        createTab.tabIndex = 0;
+        
+        setAriaHidden(templatesPanel, true);
+        setAriaHidden(createPanel, false);
+        
+        templateName.focus();
+        updateSaveButtonState();
+      }
+    }
+
+    function renderTemplatesList() {
+      if (!templatesList) return;
+      
+      const templates = TemplatesStore.getAll();
+      templatesCount.textContent = templates.length;
+      
+      if (templates.length === 0) {
+        templatesList.innerHTML = '';
+        templatesEmpty.hidden = false;
+        return;
+      }
+      
+      templatesEmpty.hidden = true;
+      templatesList.innerHTML = templates.map(template => `
+        <div class="template-item" data-template-id="${template.id}">
+          <div class="template-item__content">
+            <h4 class="template-item__title">${escapeHtml(template.name)}</h4>
+            <p class="template-item__text">${escapeHtml(template.text)}</p>
+          </div>
+          <div class="template-item__actions">
+            <button type="button" class="template-action-btn template-action-btn--copy" 
+                    data-action="copy" title="Копировать текст" aria-label="Копировать текст шаблона">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" stroke-width="2"/>
+                <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" stroke="currentColor" stroke-width="2"/>
+              </svg>
+            </button>
+            <button type="button" class="template-action-btn template-action-btn--edit" 
+                    data-action="edit" title="Редактировать" aria-label="Редактировать шаблон">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 20h9M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4L16.5 3.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            <button type="button" class="template-action-btn template-action-btn--delete" 
+                    data-action="delete" title="Удалить" aria-label="Удалить шаблон">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14zM10 11v6M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function handleTemplateAction(e) {
+      const btn = e.target.closest('[data-action]');
+      if (!btn) return;
+      
+      const action = btn.dataset.action;
+      const templateItem = btn.closest('[data-template-id]');
+      const templateId = parseInt(templateItem.dataset.templateId);
+      const template = TemplatesStore.getById(templateId);
+      
+      if (!template) return;
+      
+      switch (action) {
+        case 'copy':
+          copyTemplateText(template.text);
+          break;
+        case 'edit':
+          editTemplate(template);
+          break;
+        case 'delete':
+          deleteTemplate(template);
+          break;
+      }
+    }
+
+    function copyTemplateText(text) {
+      // Если есть активное поле ввода сообщения, вставляем туда текст
+      const activeTextarea = document.querySelector('#chatInput');
+      if (activeTextarea) {
+        const currentValue = activeTextarea.value;
+        const newValue = currentValue ? currentValue + '\n\n' + text : text;
+        activeTextarea.value = newValue;
+        activeTextarea.focus();
+        // Имитируем событие input для обновления UI
+        activeTextarea.dispatchEvent(new Event('input', { bubbles: true }));
+        hide();
+      } else {
+        // Копируем в буфер обмена
+        navigator.clipboard.writeText(text).then(() => {
+          console.log('[TemplatesModal] Text copied to clipboard');
+        }).catch(err => {
+          console.error('[TemplatesModal] Failed to copy text:', err);
+        });
+      }
+    }
+
+    function editTemplate(template) {
+      currentEditingId = template.id;
+      templateName.value = template.name;
+      templateText.value = template.text;
+      const spanLabel = templateSave.querySelector('span');
+      if (spanLabel) spanLabel.textContent = 'Сохранить изменения';
+      templateSave.disabled = false; // Раз редактируем — кнопка активна
+      switchTab('create');
+    }
+
+    function deleteTemplate(template) {
+      // Мгновенное удаление без native confirm по требованию
+      TemplatesStore.delete(template.id);
+      if (typeof window.showServiceNotification === 'function') {
+        window.showServiceNotification('Шаблон удалён', 'Шаблон успешно удалён');
+      }
+    }
+
+    function handleFormSubmit(e) {
+      e.preventDefault();
+      
+      const name = templateName.value.trim();
+      const text = templateText.value.trim();
+      
+      if (!name || !text) {
+        alert('Заполните все поля');
+        return;
+      }
+      
+      if (currentEditingId) {
+        TemplatesStore.update(currentEditingId, name, text);
+      } else {
+        TemplatesStore.create(name, text);
+      }
+      
+      resetForm();
+      switchTab('templates');
+    }
+
+    function resetForm() {
+      if (!templateForm) return;
+      
+      currentEditingId = null;
+      templateName.value = '';
+      templateText.value = '';
+      const spanLabel = templateSave.querySelector('span');
+      if (spanLabel) spanLabel.textContent = 'Создать шаблон';
+      updateSaveButtonState();
+    }
+
+    function updateSaveButtonState() {
+      if (!templateSave) return;
+      const nameFilled = templateName && templateName.value.trim().length > 0;
+      const textFilled = templateText && templateText.value.trim().length > 0;
+      templateSave.disabled = !(nameFilled && textFilled);
+    }
+
+    return { show, hide };
+  })();
+
   /* ====== Утилиты ======
      Мелкие вспомогательные функции без побочных эффектов.
   */
@@ -640,13 +1265,16 @@
    * Обновляет пагинационные контролы и счётчик.
    * Побочные эффекты: изменяет DOM внутри списка и элементов управления.
    */
+  function currentDialogs(){ return state.viewMode === 'active' ? MOCK_DIALOGS : ARCHIVE_DIALOGS; }
+
   function renderList() {
-    const totalPages = Math.max(1, Math.ceil(MOCK_DIALOGS.length / state.pageSize));
+    const source = currentDialogs();
+    const totalPages = Math.max(1, Math.ceil(source.length / state.pageSize));
     state.currentPage = Math.min(state.currentPage, totalPages);
 
     dom.list.innerHTML = '';
 
-    const pageItems = paginate(MOCK_DIALOGS, state.currentPage, state.pageSize);
+    const pageItems = paginate(source, state.currentPage, state.pageSize);
     const fragment = document.createDocumentFragment();
 
     for (const item of pageItems) {
@@ -694,7 +1322,7 @@
     dom.btnNext.disabled = isLast;
     dom.btnPrev.classList.toggle('btn--disabled', isFirst);
     dom.btnNext.classList.toggle('btn--disabled', isLast);
-    dom.totalCounter.textContent = String(MOCK_DIALOGS.length);
+    dom.totalCounter.textContent = String(source.length);
   }
 
   /**
@@ -1042,7 +1670,7 @@
       if(files.length){ addFiles(files); }
       fileInput.value=''; // чтобы одно и то же имя файла можно было выбрать повторно
     });
-    function triggerTemplates(){ console.log('[TODO] open templates modal/popup'); }
+    function triggerTemplates(){ TemplatesModal.show(); }
     btnTemplates.addEventListener('click', triggerTemplates);
     btnSend.addEventListener('click', sendMessagePlaceholder);
 
@@ -1157,7 +1785,7 @@
     }
   }
   function goNext() {
-    const totalPages = Math.max(1, Math.ceil(MOCK_DIALOGS.length / state.pageSize));
+    const totalPages = Math.max(1, Math.ceil(currentDialogs().length / state.pageSize));
     if (state.currentPage < totalPages) {
       state.currentPage++;
       renderList();
@@ -1284,6 +1912,22 @@
   function handleDlgUnsubscribe(ctx){
     // TODO: Реализовать отмену подписки пользователя на рассылку/уведомления
     console.log('[dialog action] Unsubscribe', ctx);
+    const { dialogId } = ctx || {};
+    const modalApi = window.UnsubscribeModal; // безопасно: свойство объекта, не вызовет ReferenceError
+    if (dialogId != null && modalApi && typeof modalApi.open === 'function') {
+      modalApi.open(dialogId, { trigger: 'menu' });
+    } else {
+      // Если модалка ещё не инициализирована (скрипт ниже ещё не выполнился)
+      // Попробуем отложить открытие до следующего кадра.
+      if (dialogId != null) {
+        requestAnimationFrame(() => {
+          const lateApi = window.UnsubscribeModal;
+            if (lateApi && typeof lateApi.open === 'function') {
+              lateApi.open(dialogId, { trigger: 'menu-deferred' });
+            }
+        });
+      }
+    }
   }
 
   const ACTION_HANDLERS = {
@@ -1475,6 +2119,15 @@
       const isOpen = dom.projectMenu.getAttribute('aria-hidden') === 'false';
       setProjectMenuOpen(!isOpen);
     });
+    // Переключение активные / архивные
+    const openArchiveBtn = document.getElementById('menuOpenArchive');
+    if(openArchiveBtn){
+      openArchiveBtn.addEventListener('click', (e)=>{
+        e.preventDefault();
+        toggleArchiveMode();
+        setProjectMenuOpen(false);
+      });
+    }
     // Закрывать меню проекта после выбора пункта
     if (dom.projectMenu) {
       dom.projectMenu.addEventListener('click', (e) => {
@@ -1501,6 +2154,17 @@
     // Экспорт обработчиков наружу (опционально для будущих модулей/тестов)
     window.app = window.app || {};
     window.app.dialogActions = ACTION_HANDLERS;
+    // Экспорт unsubscribe API (если модуль уже успел проинициализироваться ниже по файлу)
+    if (typeof UnsubscribeModal !== 'undefined') {
+      window.app.unsubscribe = UnsubscribeModal;
+    } else {
+      // Отложенная попытка после окончания текущего цикла
+      setTimeout(() => {
+        if (typeof UnsubscribeModal !== 'undefined') {
+          window.app.unsubscribe = UnsubscribeModal;
+        }
+      }, 0);
+    }
   }
 
   // === helper: безопасно обновляет таймер внутри li ===
@@ -1553,18 +2217,454 @@
    */
   function getDialogById(id){
     if (id == null) return null;
-    return MOCK_DIALOGS.find(d => d.id === id) || null;
+    return MOCK_DIALOGS.find(d => d.id === id) || ARCHIVE_DIALOGS.find(d => d.id === id) || null;
+  }
+
+  // ====== Переключение активные / архивные диалоги ======
+  function applyViewMode(){
+    const isArchive = state.viewMode === 'archive';
+    document.documentElement.classList.toggle('view-archive', isArchive);
+    const headerTitle = document.querySelector('.app-header__title');
+    if(headerTitle){ headerTitle.textContent = isArchive ? 'Архивные диалоги' : 'Активные диалоги'; }
+    if(dom.list){ dom.list.setAttribute('aria-label', isArchive ? 'Архивные диалоги' : 'Активные диалоги'); }
+    const menuItem = document.getElementById('menuOpenArchive');
+    if(menuItem){
+      const labelSpan = menuItem.querySelector('.popup-menu__label');
+      if(labelSpan){ labelSpan.textContent = isArchive ? 'Открыть активные диалоги' : 'Открыть архивные чаты'; }
+    }
+  }
+
+  function toggleArchiveMode(){
+    state.viewMode = state.viewMode === 'active' ? 'archive' : 'active';
+    state.selectedId = null;
+    state.currentPage = 1;
+    if(dom.chatPanel) dom.chatPanel.hidden = true;
+    if(dom.workspaceEmpty) dom.workspaceEmpty.hidden = false;
+    if(state.viewMode === 'archive') seedArchiveMessages();
+    renderList();
+    applyViewMode();
   }
 
   // Экспорт API для использования из консоли/других модулей
   const dialogsApi = { setDialogTimer, showDialogTimer, hideDialogTimer };
   window.app = window.app || {};
   window.app.dialogs = dialogsApi;
+  // Экспортируем доступ к данным диалога для внешних модулей (unsubscribe modal)
+  window.getDialogById = getDialogById;
+  window.toggleArchiveMode = toggleArchiveMode;
+  window.ARCHIVE_DIALOGS = ARCHIVE_DIALOGS;
   // Удобные глобальные алиасы (для отладки)
   window.setDialogTimer = setDialogTimer;
   window.showDialogTimer = showDialogTimer;
   window.hideDialogTimer = hideDialogTimer;
 
+  // === ЕДИНЫЙ ПУБЛИЧНЫЙ API (AppAPI) ===
+  // Централизованный контракт для интеграции. Сохраняет обратную совместимость с существующими глобалами.
+  (function exposeUnifiedApi(){
+    if(window.AppAPI) return; // не переопределяем если уже создали (на случай повторной загрузки)
+    const unified = {
+      version: '1.0.0',
+      auth: window.Auth ? {
+        isAuthed: window.Auth.isAuthed,
+        getPhase: window.Auth.getPhase,
+        showLogin: window.Auth.showLogin,
+        showApp: window.Auth.showApp,
+        logout: window.Auth.performLogout
+      } : null,
+      dialogs: {
+        select: (id) => { try { return selectDialog(Number(id)); } catch(e){ console.warn('[AppAPI.dialogs.select] error', e); } },
+        getById: (id) => { try { return getDialogById(Number(id)); } catch(e){ return null; } },
+        toggleArchive: () => { try { return toggleArchiveMode(); } catch(e){ console.warn('[AppAPI.dialogs.toggleArchive] error', e); } },
+        switchToOperator: (id, meta={}) => { try { return performSwitchToOperator(Number(id), { source: meta.source || 'api' }); } catch(e){ console.warn('[AppAPI.dialogs.switchToOperator] error', e); } },
+        timers: {
+          set: (id, value, opts={}) => { try { return setDialogTimer(Number(id), value, opts); } catch(e){ return false; } },
+          show: (id) => { try { return showDialogTimer(Number(id)); } catch(e){ return false; } },
+          hide: (id) => { try { return hideDialogTimer(Number(id)); } catch(e){ return false; } }
+        }
+      },
+      messages: {
+        add: (dialogId, payload) => {
+          try {
+            if(!payload || typeof payload !== 'object') throw new Error('payload must be object');
+            const { author='operator', text='', attachments=[], createdAt=new Date() } = payload;
+            return addMessage(Number(dialogId), { author, text, attachments, createdAt });
+          } catch(e){ console.warn('[AppAPI.messages.add] error', e); return null; }
+        }
+      },
+      templates: {
+        open: () => { try { return TemplatesModal.show(); } catch(e){ console.warn('[AppAPI.templates.open] error', e); } }
+      },
+      modals: {
+        logout: () => { if(window.LogoutConfirm && window.LogoutConfirm.open) window.LogoutConfirm.open({ trigger:'api' }); },
+        unsubscribe: (dialogId) => { if(window.UnsubscribeModal && window.UnsubscribeModal.open) window.UnsubscribeModal.open(Number(dialogId), { trigger:'api' }); }
+      },
+      notify: (title, message='', opts={}) => { try { return window.showServiceNotification ? window.showServiceNotification(title, message, opts) : null; } catch(e){ console.warn('[AppAPI.notify] error', e); return null; } },
+      ping: () => ({ ok:true, ts: Date.now(), phase: window.Auth ? window.Auth.getPhase() : null })
+    };
+    window.AppAPI = unified;
+  })();
+
   // Старт
   init();
+})();
+
+/* ====== Logout Confirmation Modal Module ======
+   Назначение: показывать небольшую модалку подтверждения выхода вместо мгновенного logout.
+   Архитектура аналогична UnsubscribeModal, но без блока ошибок и дополнительных данных.
+   API: window.LogoutConfirm.open({trigger}) / close().
+*/
+(function(){
+  'use strict';
+  const modal = document.getElementById('logoutModal');
+  if(!modal){ console.warn('[LogoutConfirm] modal element not found'); return; }
+  const el = {
+    modal,
+    close: document.getElementById('logoutClose'),
+    cancel: document.getElementById('logoutCancel'),
+    confirm: document.getElementById('logoutConfirm'),
+    spinner: modal.querySelector('.btn__spinner')
+  };
+  const state = { open:false, lastTrigger:null, lastActiveElement:null, loading:false };
+
+  function setAriaHidden(root, hidden){ root.setAttribute('aria-hidden', hidden? 'true':'false'); }
+
+  function trapFocus(e){
+    if(!state.open || e.key !== 'Tab') return;
+    const focusables = [el.cancel, el.confirm];
+    const idx = focusables.indexOf(document.activeElement);
+    if(e.shiftKey){
+      if(idx <= 0){ e.preventDefault(); focusables[focusables.length-1].focus(); }
+    } else {
+      if(idx === focusables.length-1){ e.preventDefault(); focusables[0].focus(); }
+    }
+  }
+
+  function open({ trigger = null } = {}){
+    if(state.open) return;
+    state.open = true; state.lastTrigger = trigger; state.lastActiveElement = document.activeElement;
+    setAriaHidden(el.modal, false);
+    document.body.style.overflow = 'hidden';
+    requestAnimationFrame(()=> el.cancel.focus());
+    document.addEventListener('keydown', onKeydown, true);
+    el.modal.addEventListener('click', onOverlayClick);
+  }
+
+  function close({ returnFocus = true } = {}){
+    if(!state.open) return;
+    state.open = false; state.loading = false;
+    setLoading(false);
+    setAriaHidden(el.modal, true);
+    document.body.style.overflow = '';
+    document.removeEventListener('keydown', onKeydown, true);
+    el.modal.removeEventListener('click', onOverlayClick);
+    if(returnFocus && state.lastActiveElement && typeof state.lastActiveElement.focus === 'function'){
+      try { state.lastActiveElement.focus(); } catch(_){ /* noop */ }
+    }
+  }
+
+  function setLoading(flag){
+    state.loading = flag;
+    if(flag){
+      el.confirm.setAttribute('disabled','disabled');
+      if(el.spinner) el.spinner.hidden = false;
+    } else {
+      el.confirm.removeAttribute('disabled');
+      if(el.spinner) el.spinner.hidden = true;
+    }
+  }
+
+  async function submit(){
+    if(state.loading) return;
+    setLoading(true);
+    try {
+      // Небольшая искусственная задержка для UX (ощущение действия)
+      await new Promise(r=>setTimeout(r, 250));
+      if(window.Auth && typeof window.Auth.performLogout === 'function'){
+        window.Auth.performLogout();
+      } else {
+        // Fallback если Auth не инициализирован
+        try { localStorage.removeItem('authToken'); } catch(_){ /* noop */ }
+        console.warn('[LogoutConfirm] Auth.performLogout отсутствует, применён fallback');
+        if(window.Auth && typeof window.Auth.showLogin === 'function') window.Auth.showLogin();
+      }
+      // Не возвращаем фокус к кнопке выхода, так как появляется экран логина.
+      close({ returnFocus:false });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function onKeydown(e){
+    if(e.key === 'Escape'){ e.preventDefault(); close({ returnFocus:true }); }
+    if(e.key === 'Tab') trapFocus(e);
+    if((e.key === 'Enter' || e.key === ' ') && document.activeElement === el.confirm){ e.preventDefault(); submit(); }
+  }
+
+  function onOverlayClick(e){ if(e.target === el.modal) close({ returnFocus:true }); }
+
+  el.close.addEventListener('click', ()=> close({ returnFocus:true }));
+  el.cancel.addEventListener('click', ()=> close({ returnFocus:true }));
+  el.confirm.addEventListener('click', submit);
+
+  window.LogoutConfirm = { open, close };
+})();
+
+/* ====== Unsubscribe Confirmation Modal Module ======
+   Архитектура: независимый модуль без замыкания на весь файл: использует
+   публичный API (getDialogById) через window.app.dialogs не требуется.
+   Модель состояния: { open:boolean, dialogId:number|null, loading:boolean, lastTrigger: string|null }
+   Методы:
+     open(dialogId, {trigger})   — показывает модалку, заполняет имя пользователя
+     close({returnFocus})        — скрывает модалку, опционально возвращает фокус
+     setLoading(bool)            — включает/выключает состояние загрузки у кнопки подтверждения
+     setError(message|null)      — показывает/прячет блок ошибки
+     submit()                    — имитирует асинхронный запрос отмены подписки (mock)
+   Для интеграции с реальным backend заменить функцию fakeRequest на fetch.
+*/
+(function(){
+  'use strict';
+  const modal = document.getElementById('unsubscribeModal');
+  if(!modal){ console.warn('[UnsubscribeModal] container not found'); return; }
+  const el = {
+    modal,
+    close: document.getElementById('unsubscribeClose'),
+    cancel: document.getElementById('unsubscribeCancel'),
+    confirm: document.getElementById('unsubscribeConfirm'),
+    spinner: modal.querySelector('.btn__spinner'),
+    error: document.getElementById('unsubscribeError'),
+    errorText: document.getElementById('unsubscribeErrorText'),
+    userName: document.getElementById('unsubscribeUserName')
+  };
+  const state = { open:false, dialogId:null, loading:false, lastTrigger:null, lastActiveElement:null };
+
+  function getDialog(dialogId){
+    try { return window.MOCK_DIALOGS ? window.MOCK_DIALOGS.find(d=>d.id===dialogId) : null; } catch(_){ return null; }
+  }
+
+  function setAriaHidden(root, hidden){ root.setAttribute('aria-hidden', hidden? 'true':'false'); }
+
+  function trapFocus(e){
+    if(!state.open) return;
+    if(e.key !== 'Tab') return;
+    const focusables = [el.cancel, el.confirm];
+    const idx = focusables.indexOf(document.activeElement);
+    if(e.shiftKey){
+      if(idx <= 0){ e.preventDefault(); focusables[focusables.length-1].focus(); }
+    } else {
+      if(idx === focusables.length-1){ e.preventDefault(); focusables[0].focus(); }
+    }
+  }
+
+  function open(dialogId, { trigger = null } = {}){
+    state.dialogId = dialogId;
+    state.open = true; state.lastTrigger = trigger; state.lastActiveElement = document.activeElement;
+    const dialogData = (typeof getDialogById === 'function') ? getDialogById(dialogId) : getDialog(dialogId);
+    el.userName.textContent = dialogData ? dialogData.name : 'user_'+dialogId;
+    clearError();
+    setLoading(false);
+    setAriaHidden(el.modal, false);
+    document.body.style.overflow = 'hidden';
+    requestAnimationFrame(()=>{ el.cancel.focus(); });
+    document.addEventListener('keydown', onKeydown, true);
+    el.modal.addEventListener('click', onOverlayClick);
+  }
+
+  function close({ returnFocus = true } = {}){
+    state.open = false; state.dialogId = null; state.loading = false;
+    setAriaHidden(el.modal, true);
+    document.body.style.overflow = '';
+    document.removeEventListener('keydown', onKeydown, true);
+    el.modal.removeEventListener('click', onOverlayClick);
+    if(returnFocus && state.lastActiveElement && typeof state.lastActiveElement.focus === 'function'){
+      try { state.lastActiveElement.focus(); } catch(_){ /* noop */ }
+    }
+  }
+
+  function setLoading(is){
+    state.loading = is;
+    if(is){
+      el.confirm.setAttribute('disabled','disabled');
+      el.spinner.hidden = false;
+    } else {
+      el.confirm.removeAttribute('disabled');
+      el.spinner.hidden = true;
+    }
+  }
+
+  function setError(message){
+    if(!message){ clearError(); return; }
+    el.errorText.textContent = message;
+    el.error.hidden = false;
+  }
+  function clearError(){ el.error.hidden = true; }
+
+  function fakeRequest(){
+    return new Promise((resolve,reject)=>{
+      // симуляция: 50% шанс ошибки, 900мс
+      setTimeout(()=>{ Math.random() < 0.5 ? resolve({ ok:true }) : reject(new Error('Не удалось найти и отменить подписку')); }, 900);
+    });
+  }
+
+  async function submit(){
+    if(state.loading) return;
+    setError(null);
+    setLoading(true);
+    try {
+      // Заменить fakeRequest на реальный fetch
+      await fakeRequest();
+      // Успех: закрыть модалку
+      close({ returnFocus:true });
+      console.log('[Unsubscribe] success for dialog', state.dialogId);
+      if (typeof window.showServiceNotification === 'function') {
+        window.showServiceNotification('Подписка отменена', 'Подписка пользователя успешно отменена');
+      }
+    } catch(err){
+      console.warn('[Unsubscribe] error', err);
+      setError(err.message || 'Ошибка отмены подписки');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function onKeydown(e){
+    if(e.key === 'Escape'){ e.preventDefault(); close({ returnFocus:true }); }
+    if(e.key === 'Tab') trapFocus(e);
+    if((e.key === 'Enter' || e.key === ' ') && document.activeElement === el.confirm){ e.preventDefault(); submit(); }
+  }
+
+  function onOverlayClick(e){
+    if(e.target === el.modal) close({ returnFocus:true });
+  }
+
+  el.close.addEventListener('click', ()=> close({ returnFocus:true }));
+  el.cancel.addEventListener('click', ()=> close({ returnFocus:true }));
+  el.confirm.addEventListener('click', submit);
+
+  // Экспорт API
+  window.UnsubscribeModal = { open, close, submit, setError, clearError, setLoading };
+})();
+
+/* ====== Service Notifications (Toast) Module ======
+   Назначение: компактные служебные уведомления (toast) справа снизу.
+   Упрощённый API (v2):
+     showServiceNotification(title, message)
+       title   — строка заголовка (обязательно)
+       message — строка текста (может быть пустой)
+
+   Legacy: третий параметр (объект) допустим и сейчас учитывается только свойство timeout.
+     showServiceNotification('Saved','Изменения применены',{ timeout: 6000 });
+     timeout: число мс (0 или отрицательное/Infinity => без авто закрытия).
+
+   Поведение:
+     - Авто‑закрытие по умолчанию 4000 мс.
+     - Максимум 5 активных уведомлений (FIFO удаление старых).
+     - Нет полосы прогресса; кнопка закрытия видна только при hover/фокусе.
+     - Контейнер имеет aria-live="polite" для доступности.
+*/
+(function ServiceToasts(){
+  const MAX_TOASTS = 5;
+  const DEFAULT_TIMEOUT = 4000;
+  const container = document.getElementById('toastContainer');
+  if(!container){ console.warn('[Toast] container #toastContainer не найден'); return; }
+
+  const active = new Map(); // id -> { el, timer, opts }
+
+  function escape(str){
+    return String(str == null ? '' : str)
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;')
+      .replace(/'/g,'&#39;');
+  }
+
+  function removeToast(id, reason){
+    const rec = active.get(id);
+    if(!rec) return;
+    if(rec.timer) clearTimeout(rec.timer);
+    const { el, opts } = rec;
+    el.dataset.dismiss = 'true';
+    setTimeout(()=>{
+      if(el.parentNode) el.parentNode.removeChild(el);
+      active.delete(id);
+      if(opts && typeof opts.onClose === 'function'){
+        try { opts.onClose(reason || 'api'); } catch(e){ /* noop */ }
+      }
+    }, 260);
+  }
+
+  function scheduleAutoClose(id, timeout){
+    if(timeout <= 0 || !isFinite(timeout)) return;
+    const rec = active.get(id);
+    if(!rec) return;
+    rec.timer = setTimeout(()=> removeToast(id, 'timeout'), timeout);
+  }
+
+  function buildId(customId){
+    return customId || ('toast:' + Date.now() + ':' + Math.random().toString(36).slice(2,7));
+  }
+
+  function createToastEl(id, title, message, variant, opts){
+    const el = document.createElement('div');
+    el.className = 'toast' + (variant && variant !== 'default' ? ' toast--'+variant : '');
+    el.setAttribute('role','status');
+    el.dataset.id = id;
+    const parts = [];
+    parts.push('<div class="toast__content">');
+    parts.push(`<h3 class="toast__title">${escape(title)}</h3>`);
+    if(message){ parts.push(`<p class="toast__message">${escape(message)}</p>`); }
+    parts.push('</div>');
+    if(opts.closeButton !== false){
+      parts.push(`<button class="toast__close" type="button" aria-label="Закрыть уведомление">`+
+        `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">`+
+        `<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`+
+      `</button>`);
+    }
+    el.innerHTML = parts.join('');
+    if(opts.closeButton !== false){
+      const btn = el.querySelector('.toast__close');
+      btn.addEventListener('click', ()=> removeToast(id, 'close'));
+    }
+    return el;
+  }
+
+  function enforceLimit(){
+    const keys = Array.from(active.keys());
+    while(keys.length > MAX_TOASTS){
+      const oldest = keys.shift();
+      removeToast(oldest, 'overflow');
+    }
+  }
+
+  // Новый упрощённый API: showServiceNotification(title, message)
+  // Для обратной совместимости третий параметр (opts) можно передать, но он игнорируется (кроме legacy timeout>0 для автозакрытия)
+  function showServiceNotification(title, message='', legacyOpts){
+    const opts = (legacyOpts && typeof legacyOpts === 'object') ? legacyOpts : {};
+    // Сохраняем только timeout (если нужен отказ от авто закрытия) — остальные опции убраны
+    const timeout = (typeof opts.timeout === 'number') ? opts.timeout : DEFAULT_TIMEOUT;
+    const options = { variant:'default', timeout, id:null, closeButton:true };
+    const id = buildId(options.id);
+    if(active.has(id)){
+      const old = active.get(id);
+      if(old.timer) clearTimeout(old.timer);
+      const oldEl = old.el;
+      const content = oldEl.querySelector('.toast__content');
+      if(content){
+        content.innerHTML = `<h3 class=\"toast__title\">${escape(title)}</h3>${message ? `<p class=\\"toast__message\\">${escape(message)}</p>`:''}`;
+      }
+      container.prepend(oldEl);
+      active.set(id, { el: oldEl, opts: options });
+      scheduleAutoClose(id, timeout);
+      enforceLimit();
+      return id;
+    }
+    const el = createToastEl(id, title, message, options.variant, options);
+    container.prepend(el);
+    active.set(id, { el, opts: options, timer:null });
+    scheduleAutoClose(id, timeout);
+    enforceLimit();
+    return id;
+  }
+
+  window.showServiceNotification = showServiceNotification;
 })();
