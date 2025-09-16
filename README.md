@@ -19,6 +19,8 @@
 ## Публичный API
 Все стабильные функции агрегированы в объект `window.AppAPI` (versioned). Существующие глобалы (`Auth`, `showServiceNotification`, `app.dialogs` и т.п.) оставлены для обратной совместимости, но рекомендуется использовать единый API.
 
+Версия `1.0.1` (patch): добавлена поддержка вложений (inline image / file) для сообщений клиента (`author: 'client'`). Ранее вложения у клиента игнорировались при рендере.
+
 ```js
 console.log(AppAPI.version)         // '1.0.0'
 ```
@@ -61,6 +63,31 @@ console.log(AppAPI.version)         // '1.0.0'
 }
 ```
 Если `displayHint` не указан, система пытается классифицировать сама (image/* и размер <= 800KB → inline image).
+
+Пример добавления клиентского сообщения с вложениями (c версии 1.0.1):
+```js
+AppAPI.dialogs.select(3);
+AppAPI.messages.add(3, {
+  author: 'client',
+  text: 'Вот файл и скриншот',
+  attachments: [
+    {
+      id: 'cimg1',
+      name: 'screen.png',
+      size: '120 KB',
+      contentType: 'image/png',
+      url: 'https://picsum.photos/seed/client123/320/180'
+    },
+    {
+      id: 'cdoc1',
+      name: 'spec.pdf',
+      size: '250 KB',
+      contentType: 'application/pdf',
+      downloadUrl: 'https://example.com/spec.pdf'
+    }
+  ]
+});
+```
 
 ### Templates (`AppAPI.templates`)
 | Метод | Описание |
