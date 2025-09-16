@@ -586,9 +586,20 @@
     const textHtml = `<div class="msg__text">${escapeHtml(msg.text)}</div>`;
     const metaHtml = `<div class="msg__meta"><time datetime="${new Date(msg.createdAt).toISOString()}">${formatMsgDate(msg.createdAt)}</time></div>`;
     if(msg.author === 'client'){
+      // Новая поддержка вложений для клиентских сообщений.
+      // Архитектурная политика едина: attachments рендерятся внутри пузыря между текстом и метой.
+      let attachmentsHtml = '';
+      if(Array.isArray(msg.attachments) && msg.attachments.length){
+        const parts = [];
+        for(const att of msg.attachments){
+          parts.push(buildAttachmentHtml(att));
+        }
+        attachmentsHtml = `<div class="msg__attachments">${parts.join('')}</div>`;
+      }
       return `<div class="msg msg--client" data-msg-id="${msg.id}">
         <div class="msg__bubble">
           ${textHtml}
+          ${attachmentsHtml}
           ${metaHtml}
         </div>
       </div>`;
@@ -2263,7 +2274,7 @@
   (function exposeUnifiedApi(){
     if(window.AppAPI) return; // не переопределяем если уже создали (на случай повторной загрузки)
     const unified = {
-      version: '1.0.0',
+      version: '1.0.1', // patch: добавлена поддержка вложений в client-сообщениях
       auth: window.Auth ? {
         isAuthed: window.Auth.isAuthed,
         getPhase: window.Auth.getPhase,
